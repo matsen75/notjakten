@@ -162,6 +162,23 @@ h2{margin:0 0 8px;font-weight:800}
 .ctrl{display:flex;gap:12px}
 .ctrl .btn{flex:1;font-size:2rem;padding:10px;touch-action:none}
 
+/* Håll överkanten på en rad även på smala telefoner */
+.hud{flex-wrap:nowrap}
+.hud .progress{min-width:40px}
+.streak{min-width:0;white-space:nowrap}
+.hud .pill{white-space:nowrap;flex:none}
+.bossHud{min-width:0}
+.topbar{flex-wrap:nowrap}
+.topbar .row{flex-wrap:nowrap;gap:8px;flex:none}
+#hello{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:420px){
+  .hud,.topbar{gap:6px}
+  .hud .pill,.topbar .pill{padding:4px 10px;font-size:1rem}
+  .hud .btn.small,.topbar .btn.small{padding:6px 10px}
+  .streak{font-size:.95rem}
+  #hearts{letter-spacing:-2px}
+}
+
 @media (max-width:680px){
   .stage{flex-direction:column-reverse}
   .coach{width:100%;flex-direction:row}
