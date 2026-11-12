@@ -548,8 +548,21 @@ $("closeSettings").onclick=()=>{
   save.settings={labels:$("optLabels").checked, octave:$("optOctave").checked, sound:$("optSound").checked}; persist();
   $("settingsModal").classList.remove("show");
 };
+// Två tryck i stället för confirm(), som blockeras i vissa webbläsare/hemskärmsappar
+let resetArmed=null;
 $("resetBtn").onclick=()=>{
-  if(confirm("Vill du verkligen nollställa alla stjärnor och poäng?")){ save.stars={}; save.points=0; persist(); renderMap(); }
+  const b=$("resetBtn");
+  if(!resetArmed){
+    b.textContent="Säker? Tryck igen!"; b.style.background="#fecaca";
+    resetArmed=setTimeout(()=>{ resetArmed=null; b.textContent="Nollställ allt"; b.style.background=""; },4000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed=null; b.textContent="Nollställ allt"; b.style.background="";
+  save.stars={}; save.points=0; save.name=""; persist();
+  $("settingsModal").classList.remove("show");
+  $("nameInput").value="";
+  $("startBubble").textContent="Hej! Jag är Noto-ugglan. Vad heter du?";
+  show("start");
 };
 </script>
 </body>
