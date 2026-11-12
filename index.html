@@ -248,8 +248,8 @@ const ALL_LEVELS = WORLDS.flatMap(w=>w.levels.map(l=>({...l,color:w.color})));
 const NOTES_PER_ROUND = 10;
 const STICKERS = ["🐶","🦖","🚀","🐙","🦄","⚽","🍕","🐉","🦈","🎸","🏎️","🦁","🌈","👑","🐼","🤖","🦊","🎹"];
 
-const PRAISE = ["Snyggt!","Grymt!","Rätt! 🎉","Wow!","Du är en notdetektiv! 🔍","Supersnabbt! ⚡","Klockrent!","Toppen!","Yes! 💪","Perfekt!","Du är ju ett proffs!","Hur gör du?! 🤩"];
-const STREAK_MSG = {3:"3 i rad! Du är varm! 🔥",5:"5 i rad! Helt otroligt! 🔥🔥",7:"7 i rad! Notmaskin! 🤖",10:"ALLA RÄTT! Legendariskt! 👑"};
+const PRAISE = ["Snyggt!","Grymt!","Rätt! 🎉","Wow!","Du är en notdetektiv! 🔍","Supersnabbt! ⚡","Klockrent!","Toppen!","Helt rätt! 💪","Perfekt!","Du är ju ett proffs!","Hur gör du?! 🤩"];
+const STREAK_MSG = {3:"3 i rad! Nu går det undan! 🔥",5:"5 i rad! Helt otroligt! 🔥🔥",7:"7 i rad! Du är en riktig notmaskin! 🤖",10:"ALLA RÄTT! Legendariskt! 👑"};
 const OOPS = ["Nästan! Testa igen 😊","Ingen fara – försök igen!","Hmm, titta en gång till 👀","Bra försök! Prova en annan","Alla proffs övar – en gång till!"];
 
 /* ---------- Save ---------- */
@@ -440,7 +440,7 @@ function answer(m){
     const bn=$("bigName"); bn.textContent=SV[G.cur.note.i]; bn.classList.remove("show"); void bn.offsetWidth; bn.classList.add("show");
     $("head").setAttribute("fill","#16a34a");
     $("coachFace").textContent = G.streak>=5?"🤩":"🦉";
-    say(STREAK_MSG[G.streak] || (fast? pick(["Supersnabbt! ⚡","Blixtsnabb! ⚡","Zoom! 🏎️"]) : pick(PRAISE)) + ` (+${pts})`);
+    say(STREAK_MSG[G.streak] || (fast? pick(["Supersnabbt! ⚡","Blixtsnabb! ⚡","Vilken fart! 🏎️"]) : pick(PRAISE)) + ` (+${pts})`);
     const st=$("streak");
     st.textContent = G.streak>=2 ? `🔥 ${G.streak} i rad` : " ";
     st.classList.remove("hot"); void st.offsetWidth; if(G.streak>=2) st.classList.add("hot");
@@ -466,7 +466,7 @@ function showHint(reveal){
   else if(off>=0 && off<=8){
     if(clef==="treble") h = off%2===0
       ? "Noten sitter på en <b>linje</b>. Linjerna nerifrån: <b>E G H D F</b> – <i>En Glad Hund Dansar Fint</i> 🐕"
-      : "Noten sitter i ett <b>mellanrum</b>. Mellanrummen nerifrån: <b>F A C E</b> – som engelskans <i>face</i> (ansikte) 😀";
+      : "Noten sitter i ett <b>mellanrum</b>. Mellanrummen nerifrån: <b>F A C E</b> – <i>Fyra Apor Cyklar Ensamma</i> 🐒";
     else h = off%2===0
       ? "Noten sitter på en <b>linje</b>. Linjerna nerifrån: <b>G H D F A</b> – <i>Glada Hundar Dricker Fanta Alltid</i> 🥤"
       : "Noten sitter i ett <b>mellanrum</b>. Mellanrummen nerifrån: <b>A C E G</b> – <i>Alla Cyklar Eller Går</i> 🚲";
