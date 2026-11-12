@@ -123,6 +123,32 @@ h2{margin:0 0 8px;font-weight:800}
 .confetti{position:fixed;top:-20px;width:12px;height:16px;z-index:60;pointer-events:none;animation:fall linear forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 
+/* Timer */
+.timeWrap{position:absolute;left:16px;right:16px;bottom:10px;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+#timeBar{height:100%;width:100%;background:#22c55e;border-radius:999px}
+
+/* Boss */
+.lvl.bossLvl{border-color:#fca5a5;background:linear-gradient(135deg,#fff,#fee2e2)}
+#boss{gap:10px}
+.bossHud{flex:1;min-width:150px;display:flex;flex-direction:column;gap:2px;font-weight:800;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.2)}
+.hp{background:rgba(255,255,255,.6)}
+.bossHud .progress{flex:none;height:16px;min-width:0}
+.hp>div{background:linear-gradient(90deg,#ef4444,#f97316);width:100%}
+.target{text-align:center;font-size:clamp(1.5rem,5vw,2.2rem);font-weight:800;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.2)}
+.target b{display:inline-block;background:#fff;color:#dc2626;border-radius:16px;padding:0 18px;margin-left:6px;text-shadow:none;box-shadow:0 4px 0 rgba(0,0,0,.15)}
+.target.pop b{animation:pulse .5s}
+.arena{position:relative;padding:0;overflow:hidden;height:min(58vh,540px);min-height:320px;background:linear-gradient(#e0f2fe,#f0fdf4 85%,#bbf7d0)}
+#arena{width:100%;height:100%;display:block;touch-action:none}
+.bossSays{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#fff;border-radius:14px;padding:4px 12px;font-weight:800;font-size:1rem;box-shadow:0 3px 0 rgba(0,0,0,.1);opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+.bossSays.show{opacity:1}
+.intro{position:absolute;inset:0;background:rgba(255,255,255,.96);display:flex;flex-direction:column;align-items:center;justify-content:safe center;text-align:center;padding:12px 16px;gap:4px;z-index:3;overflow-y:auto}
+.intro .mascot{font-size:clamp(2.8rem,9vh,5rem)}
+.intro h2{margin:0}
+.intro p{margin:0;font-size:clamp(.95rem,2.4vh,1.15rem);font-weight:600;max-width:460px;line-height:1.3}
+.intro .btn{margin-top:6px;flex:none}
+.ctrl{display:flex;gap:12px}
+.ctrl .btn{flex:1;font-size:2rem;padding:10px;touch-action:none}
+
 @media (max-width:680px){
   .stage{flex-direction:column-reverse}
   .coach{width:100%;flex-direction:row}
@@ -174,6 +200,7 @@ h2{margin:0 0 8px;font-weight:800}
     <div class="card staffCard">
       <svg id="staff" viewBox="0 0 400 250" aria-label="Notsystem"></svg>
       <div class="bigName" id="bigName">C</div>
+      <div class="timeWrap" id="timeWrap" style="display:none"><div id="timeBar"></div></div>
     </div>
     <div class="coach">
       <div class="mascot" id="coachFace">🦉</div>
@@ -182,6 +209,31 @@ h2{margin:0 0 8px;font-weight:800}
   </div>
   <div class="hint" id="hint"></div>
   <div class="pianoWrap"><div class="piano" id="piano"></div></div>
+</section>
+
+<!-- BOSS -->
+<section id="boss" class="screen">
+  <div class="hud">
+    <button class="btn small ghost" id="bossQuit">✖</button>
+    <div class="bossHud"><span id="bossName">Boss</span><div class="progress hp"><div id="bossHp"></div></div></div>
+    <div class="pill" id="hearts">❤️</div>
+  </div>
+  <div class="target" id="target">Fånga: <b>C</b></div>
+  <div class="card arena" id="arenaWrap">
+    <canvas id="arena"></canvas>
+    <div class="bossSays" id="bossSays"></div>
+    <div class="intro" id="bossIntro">
+      <div class="mascot" id="introFace">🦝</div>
+      <h2 id="introTitle">Boss!</h2>
+      <p id="introStory"></p>
+      <p class="midiState">Styr ugglan med <b>piltangenterna</b>, knapparna ◀ ▶ eller dra med fingret.<br>Fånga noten som heter det som står överst. Fel not kostar ett hjärta ❤️</p>
+      <button class="btn" id="bossGo">Till attack! ⚔️</button>
+    </div>
+  </div>
+  <div class="ctrl">
+    <button class="btn ghost" id="leftBtn">◀</button>
+    <button class="btn ghost" id="rightBtn">▶</button>
+  </div>
 </section>
 
 <!-- RESULT -->
@@ -232,12 +284,16 @@ const WORLDS = [
     {id:"t2", name:"Hela oktaven", desc:"Från mitten-C upp till nästa C", clef:"treble", lo:"C4", hi:"C5"},
     {id:"t3", name:"Högt upp", desc:"Alla linjer och mellanrum", clef:"treble", lo:"D4", hi:"G5"},
     {id:"t4", name:"Hjälplinjerna", desc:"Noter som sticker ut ur systemet", clef:"treble", lo:"A3", hi:"C6"},
+    {id:"t5", name:"Tidsjakten ⏱️", desc:"Alla G-klavsnoter – hinner du innan tiden tar slut?", clef:"treble", lo:"A3", hi:"C6", time:6, count:15},
+    {id:"t6", name:"Tjuv-Tore 🦝", desc:"Tvättbjörnen har stulit noterna – fånga tillbaka dem!", clef:"treble", lo:"A3", hi:"C6", boss:"tore"},
   ]},
   {key:"bass", name:"🎶 F-klaven (vänster hand)", color:"var(--bass)", levels:[
     {id:"b1", name:"Ner från mitten-C", desc:"F G A H C", clef:"bass", lo:"F3", hi:"C4"},
     {id:"b2", name:"Basens oktav", desc:"Från C ner till nästa C", clef:"bass", lo:"C3", hi:"C4"},
     {id:"b3", name:"Djupt nere", desc:"Alla linjer och mellanrum", clef:"bass", lo:"G2", hi:"B3"},
     {id:"b4", name:"Hjälplinjerna", desc:"Ännu längre upp och ner", clef:"bass", lo:"E2", hi:"E4"},
+    {id:"b5", name:"Tidsjakten ⏱️", desc:"Alla F-klavsnoter – hinner du innan tiden tar slut?", clef:"bass", lo:"E2", hi:"E4", time:6, count:15},
+    {id:"b6", name:"Trollet Brumm 🧌", desc:"Trollet har snott basnoterna – fånga tillbaka dem!", clef:"bass", lo:"E2", hi:"E4", boss:"brumm"},
   ]},
   {key:"mix", name:"🏆 Mästarprovet", color:"var(--mix)", levels:[
     {id:"m1", name:"Båda händerna", desc:"G-klav och F-klav blandat!", clef:"mix", parts:[["treble","C4","C5"],["bass","C3","C4"]]},
@@ -247,10 +303,10 @@ const WORLDS = [
 const ALL_LEVELS = WORLDS.flatMap(w=>w.levels.map(l=>({...l,color:w.color})));
 const NOTES_PER_ROUND = 10;
 const NEED = 2;   // stjärnor som krävs för att låsa upp nästa nivå
-const STICKERS = ["🐶","🦖","🚀","🐙","🦄","⚽","🍕","🐉","🦈","🎸","🏎️","🦁","🌈","👑","🐼","🤖","🦊","🎹"];
+const STICKERS = ["🐶","🦖","🚀","🐙","🦄","⚽","🍕","🐉","🦈","🎸","🏎️","🦁","🌈","👑","🐼","🤖","🦊","🎹","🐸","🦋","🐳","🍦","🎺","🛸"];
 
 const PRAISE = ["Snyggt!","Grymt!","Rätt! 🎉","Wow!","Du är en notdetektiv! 🔍","Supersnabbt! ⚡","Klockrent!","Toppen!","Helt rätt! 💪","Perfekt!","Du är ju ett proffs!","Hur gör du?! 🤩"];
-const STREAK_MSG = {3:"3 i rad! Nu går det undan! 🔥",5:"5 i rad! Helt otroligt! 🔥🔥",7:"7 i rad! Du är en riktig notmaskin! 🤖",10:"ALLA RÄTT! Legendariskt! 👑"};
+const STREAK_MSG = {3:"3 i rad! Nu går det undan! 🔥",5:"5 i rad! Helt otroligt! 🔥🔥",7:"7 i rad! Du är en riktig notmaskin! 🤖",10:"10 i rad! Legendariskt! 👑",15:"15 i rad! Du är en notkung! 👑👑"};
 const OOPS = ["Nästan! Testa igen 😊","Ingen fara – försök igen!","Hmm, titta en gång till 👀","Bra försök! Prova en annan","Alla proffs övar – en gång till!"];
 
 /* ---------- Save ---------- */
@@ -318,8 +374,8 @@ function renderMap(){
     sec.innerHTML=`<h2>${w.name}</h2><div class="levels"></div>`;
     w.levels.forEach((lv,i)=>{
       const st=save.stars[lv.id]||0, open=unlocked(lv);
-      const b=document.createElement("button"); b.className="lvl"+(open?"":" locked");
-      b.innerHTML=`<span class="num" style="background:${w.color}">Nivå ${i+1}</span>
+      const b=document.createElement("button"); b.className="lvl"+(lv.boss?" bossLvl":"")+(open?"":" locked");
+      b.innerHTML=`<span class="num" style="background:${lv.boss?"#dc2626":w.color}">Nivå ${i+1}${lv.boss?" · BOSS":""}</span>
         <div class="name">${lv.name}</div><div class="desc">${lv.desc}</div>
         ${open?"":`<div class="desc" style="color:#c2410c;font-weight:700">Lås upp: ⭐⭐ på ${lv.id==="m1"?"nivå 2 i båda klaverna":"nivån innan"}</div>`}
         <div class="stars">${"⭐".repeat(st)}<span style="opacity:.2">${"⭐".repeat(3-st)}</span></div>`;
@@ -403,9 +459,11 @@ function poolFor(lv){
 }
 function startLevel(lv){
   actx();
+  if(lv.boss) return startBoss(lv);
   const {pool,lo,hi}=poolFor(lv);
-  G={lv, pool, idx:0, mistakes:0, noteMiss:0, streak:0, best:0, score:0, cur:null, prev:null, busy:false, t0:0, fast:0};
+  G={lv, pool, total:lv.count||NOTES_PER_ROUND, idx:0, mistakes:0, timeouts:0, noteMiss:0, streak:0, best:0, score:0, cur:null, prev:null, busy:false, t0:0, fast:0};
   buildPiano(lo,hi);
+  $("timeWrap").style.display = lv.time ? "" : "none";
   $("score").textContent=0; $("streak").innerHTML="&nbsp;";
   $("coachFace").textContent="🦉";
   say(save.name? `Kör hårt, ${save.name}! Vilken not är det?` : "Vilken not är det här?");
@@ -418,7 +476,34 @@ function nextNote(){
   $("staff").innerHTML = staffSVG(c.clef, c.note, "note-in");
   $("hint").classList.remove("show");
   Object.values(keyEls).forEach(k=>k.classList.remove("good","bad","glow"));
-  $("progBar").style.width = (G.idx/NOTES_PER_ROUND*100)+"%";
+  $("progBar").style.width = (G.idx/G.total*100)+"%";
+  if(G.lv.time) startTimer();
+}
+/* Tidsgräns per not (nivå 5) */
+function startTimer(){
+  const tok={}; G.tok=tok; const ms=G.lv.time*1000; G.deadline=performance.now()+ms;
+  const bar=$("timeBar");
+  const loop=()=>{
+    if(!G || G.tok!==tok || G.busy) return;
+    const left=G.deadline-performance.now(), f=Math.max(0,left/ms);
+    bar.style.width=(f*100)+"%";
+    bar.style.background = f>.5?"#22c55e":f>.25?"#facc15":"#ef4444";
+    if(left<=0) return timeUp();
+    requestAnimationFrame(loop);
+  };
+  loop();
+}
+function timeUp(){
+  G.busy=true; G.mistakes++; G.timeouts++; G.streak=0;
+  $("streak").innerHTML="&nbsp;";
+  sndBad();
+  $("head").setAttribute("fill","#ef4444");
+  Object.entries(keyEls).forEach(([m,k])=>{ if(isRight(+m) && k.classList.contains("wk")) k.classList.add("glow"); });
+  $("coachFace").textContent="⏰";
+  say(`Tiden tog slut! Det var ett ${SV[G.cur.note.i]} – nästa!`);
+  G.idx++;
+  $("progBar").style.width = (G.idx/G.total*100)+"%";
+  setTimeout(()=>{ if(G) (G.idx>=G.total ? finish() : nextNote()); }, 1600);
 }
 function isRight(m){
   const t=midi(G.cur.note);
@@ -447,8 +532,8 @@ function answer(m){
     st.textContent = G.streak>=2 ? `🔥 ${G.streak} i rad` : " ";
     st.classList.remove("hot"); void st.offsetWidth; if(G.streak>=2) st.classList.add("hot");
     G.idx++;
-    $("progBar").style.width = (G.idx/NOTES_PER_ROUND*100)+"%";
-    setTimeout(()=> G.idx>=NOTES_PER_ROUND ? finish() : nextNote(), 900);
+    $("progBar").style.width = (G.idx/G.total*100)+"%";
+    setTimeout(()=>{ if(G) (G.idx>=G.total ? finish() : nextNote()); }, 900);
   } else {
     G.mistakes++; G.noteMiss++; G.streak=0;
     $("streak").innerHTML="&nbsp;";
@@ -483,29 +568,35 @@ function showHint(reveal){
   $("hint").innerHTML=h; $("hint").classList.add("show");
 }
 function finish(){
-  const lv=G.lv, m=G.mistakes;
+  const m=G.mistakes;
   const stars = m<=1?3 : m<=4?2 : 1;
-  const beforeStars = totalStars();
-  const old = save.stars[lv.id]||0;
-  if(stars>old) save.stars[lv.id]=stars;
-  save.points += G.score; persist();
-  const after = totalStars();
-  sndWin(); confetti(stars===3?140:70);
-  $("resFace").textContent = stars===3?"🤩":stars===2?"😄":"🙂";
-  $("resTitle").textContent = stars===3 ? (save.name?`Fantastiskt, ${save.name}!`:"Fantastiskt!") : stars===2 ? "Riktigt bra jobbat!" : "Bra kämpat! Övning ger färdighet 💪";
-  const ss=$("resStars").children; [...ss].forEach(s=>s.classList.remove("on"));
-  [...ss].slice(0,stars).forEach((s,i)=>setTimeout(()=>{ s.classList.add("on"); tone(mfreq(76+i*4),.4,.15,"sine"); },400+i*350));
-  $("resStats").innerHTML = `
+  showResult({lv:G.lv, stars, score:G.score,
+    title: stars===3 ? (save.name?`Fantastiskt, ${save.name}!`:"Fantastiskt!") : stars===2 ? "Riktigt bra jobbat!" : "Bra kämpat! Övning ger färdighet 💪",
+    stats:`
     <div class="stat"><small>Poäng</small>🏆 ${G.score}</div>
     <div class="stat"><small>Längsta svit</small>🔥 ${G.best}</div>
     <div class="stat"><small>Blixtsnabba</small>⚡ ${G.fast}</div>
-    <div class="stat"><small>Felklick</small>${m===0?"0 😎":m}</div>`;
+    <div class="stat"><small>Felklick</small>${m===0?"0 😎":m}</div>` + (G.lv.time?`<div class="stat"><small>Tiden tog slut</small>⏰ ${G.timeouts}</div>`:"")});
+  G=null;
+}
+function showResult({lv, stars, score, title, stats, face}){
+  const beforeStars = totalStars();
+  const old = save.stars[lv.id]||0;
+  if(stars>old) save.stars[lv.id]=stars;
+  save.points += score; persist();
+  const after = totalStars();
+  if(stars>0){ sndWin(); confetti(stars===3?140:70); }
+  $("resFace").textContent = face || (stars===3?"🤩":stars===2?"😄":"🙂");
+  $("resTitle").textContent = title;
+  const ss=$("resStars").children; [...ss].forEach(s=>s.classList.remove("on"));
+  [...ss].slice(0,stars).forEach((s,i)=>setTimeout(()=>{ s.classList.add("on"); tone(mfreq(76+i*4),.4,.15,"sine"); },400+i*350));
+  $("resStats").innerHTML = stats;
   const ns=$("newSticker"); ns.classList.remove("show");
   const gained = stickersFor(after)-stickersFor(beforeStars);
   if(gained>0){ ns.innerHTML=`Nytt klistermärke: <span style="font-size:2rem">${STICKERS.slice(stickersFor(beforeStars),stickersFor(after)).join(" ")}</span>`; ns.classList.add("show"); }
   const idx=ALL_LEVELS.findIndex(l=>l.id===lv.id); const nxt=ALL_LEVELS[idx+1];
-  $("nextBtn").style.display = nxt && unlocked(nxt) ? "" : "none";
-  if(stars<NEED && (save.stars[lv.id]||0)<NEED && nxt && !unlocked(nxt))
+  $("nextBtn").style.display = stars>0 && nxt && unlocked(nxt) ? "" : "none";
+  if(stars>0 && stars<NEED && (save.stars[lv.id]||0)<NEED && nxt && !unlocked(nxt))
     $("resTitle").textContent = "Bra kämpat! Spela en gång till – med två stjärnor öppnas nästa nivå 💪";
   $("nextBtn").onclick=()=>startLevel(nxt);
   $("againBtn").onclick=()=>startLevel(lv);
@@ -513,6 +604,223 @@ function finish(){
 }
 $("quitBtn").onclick=()=>{ G=null; renderMap(); show("map"); };
 $("mapBtn").onclick=()=>{ renderMap(); show("map"); };
+
+/* ---------- Bossfajt ---------- */
+const BOSSES = {
+  tore:{name:"Tjuv-Tore", emoji:"🦝",
+    story:"Tvättbjörnen Tjuv-Tore har stulit alla noter i G-klaven och kastar dem omkring sig! Fånga rätt noter så tar du tillbaka dem.",
+    taunt:["Hihi, den här hittar du aldrig!","Mina noter! Mina!","Fånga mig om du kan!","Haha, vilken är vilken?","Nu kommer det massor!"],
+    hurt:["Aj! Ge tillbaka den!","Nej, inte den!","Hallå, det där var min!","Grrr! Hur visste du?!","Okej, okej… du är bra!"],
+    laugh:["Haha! Fel not!","Hihi, den var inte rätt!","Ha! Lurad!"],
+    win:"Tjuv-Tore ger upp och lämnar tillbaka alla noter! 🎉", lose:"Tjuv-Tore smet iväg den här gången… Men du kommer ta honom nästa gång!"},
+  brumm:{name:"Trollet Brumm", emoji:"🧌",
+    story:"Trollet Brumm har snott basnoterna och slänger ner dem från sitt berg! Fånga rätt noter så tar du tillbaka dem.",
+    taunt:["BRUMM! Mina basnoter!","Hö hö, den hittar du inte!","Trollnoter, flyg!","Djupt, djupare, djupast!","BRUMMELI-BRUMM!"],
+    hurt:["AJ! Mina noter!","Brumm… det var ju rätt!","Hur kan en uggla vara så smart?!","Nej nej nej!","Brumm brumm… du är stark!"],
+    laugh:["HÖ HÖ! Fel not!","Brumm-ha-ha! Fel!","Hö! Lurad!"],
+    win:"Trollet Brumm lovar att aldrig mer sno basnoter! 🎉", lose:"Trollet Brumm vann den här gången… Men du kommer klå honom nästa gång!"},
+};
+const BOSS_HP = 8, HEARTS = 5;
+let B=null;
+const cv=$("arena"), cx=cv.getContext("2d");
+
+function startBoss(lv){
+  const boss=BOSSES[lv.boss];
+  if(B) B.running=false;
+  B={lv, boss, pool:poolFor(lv).pool, W:0, H:0, owl:{x:0,tx:null,flash:0}, keys:{l:false,r:false},
+     cards:[], fx:[], hp:BOSS_HP, hearts:HEARTS, target:0, t:0, nextThrow:1, sinceTarget:0, stun:0, hit:0,
+     running:false, score:0, caught:0, wrong:0, last:0, over:false};
+  $("bossName").textContent = `${boss.emoji} ${boss.name}`;
+  $("introFace").textContent = boss.emoji; $("introTitle").textContent = `Boss: ${boss.name}!`;
+  $("introStory").textContent = boss.story;
+  $("bossIntro").style.display="";
+  show("boss"); resizeArena(); B.owl.x=B.W/2;
+  newTarget(); updateBossHud(); drawBoss();
+  document.fonts && document.fonts.load(`40px "Noto Music"`).then(()=>B && drawBoss());
+}
+$("bossGo").onclick=()=>{
+  if(!B) return; actx();
+  $("bossIntro").style.display="none";
+  B.running=true; B.last=performance.now();
+  bossSay(pick(B.boss.taunt));
+  requestAnimationFrame(bossLoop);
+};
+function resizeArena(){
+  const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  if(B){ B.W=r.width; B.H=r.height; B.owl.x=Math.min(Math.max(B.owl.x,40),B.W-40); }
+}
+window.addEventListener("resize",()=>{ if(B && $("boss").classList.contains("active")){ resizeArena(); drawBoss(); } });
+
+function newTarget(){
+  const letters=[...new Set(B.pool.map(p=>p.note.i))].filter(i=>i!==B.target || B.hp===BOSS_HP);
+  B.target=pick(letters);
+  $("target").innerHTML=`Fånga: <b>${SV[B.target]}</b>`;
+  const t=$("target"); t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop");
+}
+function updateBossHud(){
+  $("bossHp").style.width=(B.hp/BOSS_HP*100)+"%";
+  $("hearts").textContent = "❤️".repeat(B.hearts) + "🤍".repeat(HEARTS-B.hearts);
+}
+let sayT=null;
+function bossSay(t){ const e=$("bossSays"); e.textContent=`${B.boss.emoji} ${t}`; e.classList.add("show"); clearTimeout(sayT); sayT=setTimeout(()=>e.classList.remove("show"),2200); }
+
+function bossLoop(ts){
+  if(!B || !B.running) return;
+  const dt=Math.min(.05,(ts-B.last)/1000); B.last=ts;
+  bossUpdate(dt); drawBoss();
+  requestAnimationFrame(bossLoop);
+}
+function bossX(){ return B.W/2 + Math.sin(B.t*0.8)*(B.W/2-70); }
+function bossUpdate(dt){
+  B.t+=dt;
+  const p = 1 - B.hp/BOSS_HP;                 // 0 → 1 när bossen försvagas
+  // uggla
+  const o=B.owl, sp=Math.max(420, B.W*0.9);
+  if(B.keys.l) { o.x-=sp*dt; o.tx=null; }
+  else if(B.keys.r) { o.x+=sp*dt; o.tx=null; }
+  else if(o.tx!=null){ const d=o.tx-o.x; o.x += Math.sign(d)*Math.min(Math.abs(d), sp*dt); }
+  o.x=Math.min(Math.max(o.x,36),B.W-36);
+  o.flash=Math.max(0,o.flash-dt); B.hit=Math.max(0,B.hit-dt);
+  // kasta noter
+  if(B.stun>0) B.stun-=dt;
+  else {
+    B.nextThrow-=dt;
+    if(B.nextThrow<=0 && !B.over){
+      const wantTarget = B.sinceTarget>=2 || Math.random()<.4;
+      const opts = B.pool.filter(c=> wantTarget ? c.note.i===B.target : c.note.i!==B.target);
+      const c = pick(opts);
+      B.sinceTarget = wantTarget ? 0 : B.sinceTarget+1;
+      B.cards.push({...c, x:bossX(), y:90, vx:(Math.random()-.5)*60, vy:B.H*(0.17+0.13*p)});
+      B.nextThrow = 1.8 - 0.8*p;
+      tone(mfreq(midi(c.note)),.25,.06,"sine");
+    }
+  }
+  // fallande kort
+  const oy=B.H-52;
+  for(const c of B.cards){
+    c.x+=c.vx*dt; c.y+=c.vy*dt;
+    if(c.x<50||c.x>B.W-50){ c.vx*=-1; c.x=Math.min(Math.max(c.x,50),B.W-50); }
+    if(!c.done && !B.over && c.y+30>=oy-34 && c.y-30<=oy && Math.abs(c.x-o.x)<62){ c.done=true; catchCard(c); }
+    if(c.y>B.H+60) c.done=true;
+  }
+  B.cards=B.cards.filter(c=>!c.done);
+  for(const f of B.fx){ f.t+=dt; f.y-=40*dt; }
+  B.fx=B.fx.filter(f=>f.t<1.4);
+}
+function catchCard(c){
+  const name=SV[c.note.i];
+  playMidi(midi(c.note));
+  if(c.note.i===B.target){
+    B.hp--; B.caught++; B.score+=20; B.hit=.5;
+    B.fx.push({x:c.x,y:c.y,t:0,txt:`Rätt! ${name} +20`,col:"#16a34a"});
+    setTimeout(sndGood,100);
+    // bossen blir yr: alla noter i luften försvinner
+    B.cards.forEach(k=>{ if(k!==c){ k.done=true; B.fx.push({x:k.x,y:k.y,t:.6,txt:"💨",col:"#64748b"}); } });
+    B.stun=1.1; B.sinceTarget=0;
+    updateBossHud();
+    if(B.hp<=0) return endBoss(true);
+    bossSay(pick(B.boss.hurt));
+    newTarget();
+  } else {
+    B.hearts--; B.wrong++; B.owl.flash=.6;
+    B.fx.push({x:c.x,y:c.y,t:0,txt:`Oj, det var ett ${name}!`,col:"#dc2626"});
+    sndBad(); updateBossHud();
+    if(B.hearts<=0) return endBoss(false);
+    bossSay(pick(B.boss.laugh));
+  }
+}
+function endBoss(win){
+  B.over=true; B.cards=[];
+  bossSay(win?"NEEEJ! Du vann!":"Hö hö! Jag vann!");
+  const b=B;
+  setTimeout(()=>{
+    if(B!==b) return;
+    b.running=false;
+    const stars = !win ? 0 : b.hearts>=4 ? 3 : b.hearts>=2 ? 2 : 1;
+    const score = b.score + (win ? 100 + b.hearts*20 : 0);
+    showResult({lv:b.lv, stars, score,
+      face: win ? "🏆" : b.boss.emoji,
+      title: win ? b.boss.win : b.boss.lose,
+      stats:`
+        <div class="stat"><small>Poäng</small>🏆 ${score}</div>
+        <div class="stat"><small>Rätt fångade</small>🎯 ${b.caught}</div>
+        <div class="stat"><small>Hjärtan kvar</small>${"❤️".repeat(b.hearts)||"0"}</div>`});
+    B=null;
+  }, 1300);
+}
+
+/* Ritning */
+function drawCard(c){
+  const w=100,h=86,x=c.x-w/2,y=c.y-h/2, sp=8, bot=y+60;
+  cx.save();
+  cx.shadowColor="rgba(0,0,0,.18)"; cx.shadowBlur=8; cx.shadowOffsetY=4;
+  cx.fillStyle="#fff"; cx.beginPath();
+  cx.roundRect ? cx.roundRect(x,y,w,h,14) : cx.rect(x,y,w,h); cx.fill();
+  cx.shadowColor="transparent";
+  cx.strokeStyle="#c4b5fd"; cx.lineWidth=3; cx.stroke();
+  cx.strokeStyle="#1e1b4b"; cx.lineWidth=1.4;
+  for(let k=0;k<5;k++){ const ly=bot-k*sp; cx.beginPath(); cx.moveTo(x+6,ly); cx.lineTo(x+w-6,ly); cx.stroke(); }
+  cx.fillStyle="#1e1b4b";
+  if(c.clef==="treble"){ cx.font=`${sp*4.6}px "Noto Music","Segoe UI Symbol"`; cx.fillText("𝄞",x+8,bot-sp); }
+  else { cx.font=`${sp*4.2}px "Noto Music","Segoe UI Symbol"`; cx.fillText("𝄢",x+8,bot-sp); }
+  const off=dia(c.note)-BOTTOM_DIA[c.clef], nx=x+66, ny=bot-off*sp/2;
+  cx.lineWidth=1.8;
+  for(let k=-2;k>=off;k-=2){ const ly=bot-k*sp/2; cx.beginPath(); cx.moveTo(nx-11,ly); cx.lineTo(nx+11,ly); cx.stroke(); }
+  for(let k=10;k<=off;k+=2){ const ly=bot-k*sp/2; cx.beginPath(); cx.moveTo(nx-11,ly); cx.lineTo(nx+11,ly); cx.stroke(); }
+  cx.beginPath(); cx.ellipse(nx,ny,6.2,4.6,-0.35,0,Math.PI*2); cx.fill();
+  cx.restore();
+}
+function drawBoss(){
+  if(!B) return;
+  const W=B.W,H=B.H; cx.clearRect(0,0,W,H);
+  cx.globalAlpha=1; cx.fillStyle="#000";
+  cx.textAlign="center"; cx.textBaseline="middle";
+  // kort (ritas före bossen så att bossen syns överst)
+  cx.textAlign="left"; cx.textBaseline="alphabetic";
+  B.cards.forEach(drawCard);
+  // boss
+  cx.textAlign="center"; cx.textBaseline="middle"; cx.fillStyle="#000";
+  const bx=bossX()+(B.hit>0?Math.sin(B.t*60)*6:0);
+  cx.font="64px system-ui, 'Segoe UI Emoji', 'Apple Color Emoji'";
+  cx.fillText(B.boss.emoji,bx,58);
+  if(B.hit>0){ cx.font="34px system-ui"; cx.fillText("💥",bx+34,36); }
+  if(B.stun>0 && B.hp>0){ cx.font="22px system-ui"; cx.fillText("💫",bx,14); }
+  // uggla
+  cx.textAlign="center"; cx.textBaseline="middle";
+  const oy=H-52;
+  if(B.owl.flash>0){ cx.fillStyle="rgba(239,68,68,.35)"; cx.beginPath(); cx.arc(B.owl.x,oy,44,0,Math.PI*2); cx.fill(); }
+  cx.fillStyle="#000";
+  cx.font="68px system-ui, 'Segoe UI Emoji', 'Apple Color Emoji'";
+  cx.fillText("🦉",B.owl.x,oy);
+  // texter
+  cx.font="800 22px 'Baloo 2', system-ui";
+  B.fx.forEach(f=>{ cx.globalAlpha=Math.max(0,1-f.t/1.4); cx.fillStyle=f.col; cx.fillText(f.txt,Math.min(Math.max(f.x,90),W-90),f.y); });
+  cx.globalAlpha=1;
+}
+
+/* Styrning */
+document.addEventListener("keydown",e=>{
+  if(!B || !$("boss").classList.contains("active")) return;
+  if(e.key==="ArrowLeft"){ B.keys.l=true; e.preventDefault(); }
+  if(e.key==="ArrowRight"){ B.keys.r=true; e.preventDefault(); }
+  if((e.key==="Enter"||e.key===" ") && $("bossIntro").style.display!=="none"){ $("bossGo").click(); e.preventDefault(); }
+});
+document.addEventListener("keyup",e=>{
+  if(!B) return;
+  if(e.key==="ArrowLeft") B.keys.l=false;
+  if(e.key==="ArrowRight") B.keys.r=false;
+});
+function pointerX(e){ const r=cv.getBoundingClientRect(); return e.clientX-r.left; }
+cv.addEventListener("pointerdown",e=>{ if(B){ B.owl.tx=pointerX(e); cv.setPointerCapture(e.pointerId); } });
+cv.addEventListener("pointermove",e=>{ if(B && (e.pointerType==="mouse" || e.buttons)) B.owl.tx=pointerX(e); });
+[["leftBtn","l"],["rightBtn","r"]].forEach(([id,k])=>{
+  const el=$(id);
+  el.addEventListener("pointerdown",e=>{ e.preventDefault(); if(B){ B.keys[k]=true; el.setPointerCapture(e.pointerId); } });
+  ["pointerup","pointercancel","lostpointercapture"].forEach(ev=>el.addEventListener(ev,()=>{ if(B) B.keys[k]=false; }));
+});
+$("bossQuit").onclick=()=>{ if(B) B.running=false; B=null; renderMap(); show("map"); };
 
 /* ---------- Keyboard shortcuts (computer keyboard letters) ---------- */
 document.addEventListener("keydown",e=>{
