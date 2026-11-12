@@ -630,6 +630,7 @@ function startBoss(lv){
   B={lv, boss, pool:poolFor(lv).pool, W:0, H:0,
      owl:{x:0,tx:null,flash:0,px:null,vx:0,tilt:0,hop:0,dizzy:0,lastDir:0,trail:[],win:false,fallen:false},
      keys:{l:false,r:false}, parts:[], streak:0,
+     bphase:0, bvx:0, bpx:null, laugh:0, thrown:0, angry:false, defeat:0, bwin:false, sweat:0, grr:0,
      cards:[], fx:[], hp:BOSS_HP, hearts:HEARTS, target:0, t:0, nextThrow:1, sinceTarget:0, stun:0, hit:0,
      running:false, score:0, caught:0, wrong:0, last:0, over:false};
   $("bossName").textContent = `${boss.emoji} ${boss.name}`;
@@ -674,10 +675,11 @@ function bossLoop(ts){
   bossUpdate(dt); drawBoss();
   requestAnimationFrame(bossLoop);
 }
-function bossX(){ return B.W/2 + Math.sin(B.t*0.8)*(B.W/2-70); }
+function bossX(){ return B.W/2 + Math.sin(B.bphase)*(B.W/2-70); }
 function bossUpdate(dt){
   B.t+=dt;
   const p = 1 - B.hp/BOSS_HP;                 // 0 → 1 när bossen försvagas
+  bossAnimUpdate(dt);
   // uggla
   const o=B.owl, sp=Math.max(420, B.W*0.9);
   if(B.keys.l) { o.x-=sp*dt; o.tx=null; }
@@ -697,6 +699,8 @@ function bossUpdate(dt){
       B.sinceTarget = wantTarget ? 0 : B.sinceTarget+1;
       B.cards.push({...c, x:bossX(), y:90, vx:(Math.random()-.5)*60, vy:B.H*(0.17+0.13*p)});
       B.nextThrow = 1.8 - 0.8*p;
+      B.thrown=.25;
+      burst(bossX(), 80, 3, ["💨"], {speed:90, g:0, life:.4, size:16});
       tone(mfreq(midi(c.note)),.25,.06,"sine");
     }
   }
@@ -726,22 +730,27 @@ function catchCard(c){
     B.cards.forEach(k=>{ if(k!==c){ k.done=true; B.fx.push({x:k.x,y:k.y,t:.6,txt:"💨",col:"#64748b"}); } });
     B.stun=1.1; B.sinceTarget=0;
     updateBossHud();
+    burst(bossX(), 50, 5, ["💧"], {up:true, speed:170, g:420, life:.9, size:16});
     if(B.hp<=0) return endBoss(true);
-    bossSay(pick(B.boss.hurt));
+    if(!B.angry && B.hp<=BOSS_HP/2){ B.angry=true; bossSay("Grrr! Nu blir jag ARG! 😡"); }
+    else bossSay(pick(B.boss.hurt));
     newTarget();
   } else {
     B.hearts--; B.wrong++; B.owl.flash=.6; B.owl.dizzy=.9; B.streak=0;
     burst(B.owl.x, B.H-70, 7, ["🪶"], {up:true, speed:200, g:160, life:1.4, size:20});
     B.fx.push({x:c.x,y:c.y,t:0,txt:`Oj, det var ett ${name}!`,col:"#dc2626"});
     sndBad(); updateBossHud();
+    B.laugh=1;
+    burst(bossX(), 40, 4, ["HA!","HI!","😂"], {up:true, speed:150, g:-30, life:1, size:20, col:"#dc2626"});
     if(B.hearts<=0) return endBoss(false);
     bossSay(pick(B.boss.laugh));
   }
 }
 function endBoss(win){
   B.over=true; B.cards=[];
-  if(win){ B.owl.win=true; burst(bossX(),58,20,["💥","⭐","✨"],{speed:320,g:200,life:1.3}); }
-  else { B.owl.fallen=true; B.owl.dizzy=1.3; }
+  if(win){ B.owl.win=true; B.defeat=.001; burst(bossX(),58,20,["💥","⭐","✨"],{speed:320,g:200,life:1.3});
+           burst(bossX(),58,1,["🏳️"],{speed:40,g:120,life:1.3,size:34}); }
+  else { B.owl.fallen=true; B.owl.dizzy=1.3; B.bwin=true; }
   bossSay(win?"NEEEJ! Du vann!":"Hö hö! Jag vann!");
   const b=B;
   setTimeout(()=>{
@@ -767,7 +776,7 @@ function burst(x,y,n,emojis,opt={}){
     const a=(opt.up? -Math.PI/2 : 0) + (opt.up? (Math.random()-.5)*Math.PI*1.2 : Math.random()*Math.PI*2);
     const s=(opt.speed||220)*(.5+Math.random()*.7);
     B.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,g:opt.g??300,life:opt.life||1,max:opt.life||1,
-      e:pick(emojis),s:opt.size||(18+Math.random()*14),r:Math.random()*6,vr:(Math.random()-.5)*8,dust:!!opt.dust});
+      e:pick(emojis),s:opt.size||(18+Math.random()*14),r:opt.col?(Math.random()-.5)*.6:Math.random()*6,vr:opt.col?0:(Math.random()-.5)*8,dust:!!opt.dust,col:opt.col});
   }
 }
 function owlAnimUpdate(dt, sp){
@@ -840,9 +849,58 @@ function drawParts(){
   for(const p of B.parts){
     cx.globalAlpha=Math.min(1,p.life/(p.max*.5));
     if(p.dust){ cx.fillStyle="#cbd5e1"; cx.beginPath(); cx.arc(p.x,p.y,p.s*(1.6-p.life/p.max),0,Math.PI*2); cx.fill(); }
-    else { cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle="#000"; cx.font=`${p.s}px ${EMOJI_FONT}`; cx.fillText(p.e,0,0); cx.restore(); }
+    else { cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle=p.col||"#000"; cx.font=`${p.col?"800 ":""}${p.s}px ${p.col?"'Baloo 2', ":""}${EMOJI_FONT}`; cx.fillText(p.e,0,0); cx.restore(); }
   }
   cx.globalAlpha=1;
+}
+
+/* Bossens animationer */
+function bossAnimUpdate(dt){
+  if(!B.over) B.bphase += dt*(0.8 + (B.angry?0.45:0));
+  const x=bossX(); if(B.bpx===null) B.bpx=x;
+  B.bvx = dt>0 ? (x-B.bpx)/dt : 0; B.bpx=x;
+  B.laugh=Math.max(0,B.laugh-dt); B.thrown=Math.max(0,B.thrown-dt);
+  if(B.defeat>0) B.defeat+=dt;
+  if(B.over) return;
+  // svettdroppar när bossen är nästan slut
+  if(B.hp<=2){ B.sweat-=dt; if(B.sweat<=0){ B.sweat=.6; burst(x+(Math.random()<.5?-26:26),34,1,["💦"],{up:true,speed:90,g:300,life:.8,size:16}); } }
+  // arg-symboler i arg fas
+  if(B.angry){ B.grr-=dt; if(B.grr<=0){ B.grr=1.1; burst(x+22,22,1,["💢"],{speed:20,g:-20,life:.6,size:20}); } }
+}
+function drawBossChar(){
+  const bx=bossX(), dir=Math.sign(B.bvx)||1;
+  let y=58, rot=0, sx=1, sy=1, alpha=1;
+  // studsar fram och tillbaka och lutar sig i rörelseriktningen
+  y -= Math.abs(Math.sin(B.bphase*7))*8;
+  rot += Math.max(-1,Math.min(1,B.bvx/400))*.18;
+  // tar sats före kast (hukar sig och lutar bakåt) …
+  if(!B.over && B.stun<=0 && B.nextThrow<.35){ const w=1-B.nextThrow/.35; sy*=1-.16*w; sx*=1+.1*w; rot-=.28*w*dir; y+=5*w; }
+  // … och sträcker ut sig i kastet
+  if(B.thrown>0){ const k=B.thrown/.25; sy*=1+.16*k; sx*=1-.08*k; rot+=.32*k*dir; }
+  // träffad: flyger upp och vinglar
+  if(B.hit>0){ const k=B.hit/.5; y-=Math.sin(Math.PI*(1-k))*22; rot+=Math.sin(B.t*50)*.25*k; }
+  // skrattar
+  if(B.laugh>0){ y-=Math.abs(Math.sin(B.t*22))*10*B.laugh; rot+=Math.sin(B.t*18)*.18*B.laugh; }
+  // segerdans
+  if(B.bwin){ y-=Math.abs(Math.sin(B.t*10))*26; rot+=Math.sin(B.t*10)*.3; }
+  // besegrad: snurrar iväg upp ur bild
+  if(B.defeat>0){ const d=B.defeat; y-=d*d*260; rot+=d*16; sx*=Math.max(.2,1-d*.5); sy*=Math.max(.2,1-d*.5); alpha=Math.max(0,1-d*.8); }
+  // röd aura i arg fas / röd blixt när den träffas
+  if((B.angry && !B.over) || B.hit>0){
+    const r=50+Math.sin(B.t*10)*6, a=B.hit>0?.55:.35, g=cx.createRadialGradient(bx,y,8,bx,y,r);
+    g.addColorStop(0,`rgba(239,68,68,${a})`); g.addColorStop(1,"rgba(239,68,68,0)");
+    cx.fillStyle=g; cx.beginPath(); cx.arc(bx,y,r,0,Math.PI*2); cx.fill();
+  }
+  cx.save(); cx.globalAlpha=alpha; cx.fillStyle="#000";
+  cx.translate(bx,y); cx.rotate(rot); cx.scale(sx,sy);
+  cx.font=`64px ${EMOJI_FONT}`; cx.fillText(B.boss.emoji,0,0);
+  cx.restore();
+  if(B.hit>0){ cx.font=`34px ${EMOJI_FONT}`; cx.fillText("💥",bx+34,y-22); }
+  // yr: stjärnor snurrar runt huvudet
+  if(B.stun>0 && B.hp>0){
+    cx.font=`18px ${EMOJI_FONT}`;
+    for(let k=0;k<3;k++){ const a=B.t*9+k*2.1; cx.fillText(k%2?"💫":"⭐", bx+Math.cos(a)*34, y-34+Math.sin(a)*8); }
+  }
 }
 
 /* Ritning */
@@ -876,11 +934,7 @@ function drawBoss(){
   B.cards.forEach(drawCard);
   // boss
   cx.textAlign="center"; cx.textBaseline="middle"; cx.fillStyle="#000";
-  const bx=bossX()+(B.hit>0?Math.sin(B.t*60)*6:0);
-  cx.font="64px system-ui, 'Segoe UI Emoji', 'Apple Color Emoji'";
-  cx.fillText(B.boss.emoji,bx,58);
-  if(B.hit>0){ cx.font="34px system-ui"; cx.fillText("💥",bx+34,36); }
-  if(B.stun>0 && B.hp>0){ cx.font="22px system-ui"; cx.fillText("💫",bx,14); }
+  drawBossChar();
   // uggla + partiklar
   cx.textAlign="center"; cx.textBaseline="middle";
   drawOwl(H-52);
