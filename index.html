@@ -246,6 +246,7 @@ const WORLDS = [
 ];
 const ALL_LEVELS = WORLDS.flatMap(w=>w.levels.map(l=>({...l,color:w.color})));
 const NOTES_PER_ROUND = 10;
+const NEED = 2;   // stjärnor som krävs för att låsa upp nästa nivå
 const STICKERS = ["🐶","🦖","🚀","🐙","🦄","⚽","🍕","🐉","🦈","🎸","🏎️","🦁","🌈","👑","🐼","🤖","🦊","🎹"];
 
 const PRAISE = ["Snyggt!","Grymt!","Rätt! 🎉","Wow!","Du är en notdetektiv! 🔍","Supersnabbt! ⚡","Klockrent!","Toppen!","Helt rätt! 💪","Perfekt!","Du är ju ett proffs!","Hur gör du?! 🤩"];
@@ -304,8 +305,8 @@ $("nameInput").addEventListener("keydown",e=>{ if(e.key==="Enter") $("startBtn")
 function unlocked(lv){
   const idx = ALL_LEVELS.findIndex(l=>l.id===lv.id);
   if(lv.id==="t1"||lv.id==="b1") return true;
-  if(lv.id==="m1") return (save.stars.t2||0)>0 && (save.stars.b2||0)>0;
-  const prev = ALL_LEVELS[idx-1]; return (save.stars[prev.id]||0)>0;
+  if(lv.id==="m1") return (save.stars.t2||0)>=NEED && (save.stars.b2||0)>=NEED;
+  const prev = ALL_LEVELS[idx-1]; return (save.stars[prev.id]||0)>=NEED;
 }
 function renderMap(){
   $("hello").textContent = save.name ? `🦉 Hej ${save.name}!` : "🦉 Hej!";
@@ -320,6 +321,7 @@ function renderMap(){
       const b=document.createElement("button"); b.className="lvl"+(open?"":" locked");
       b.innerHTML=`<span class="num" style="background:${w.color}">Nivå ${i+1}</span>
         <div class="name">${lv.name}</div><div class="desc">${lv.desc}</div>
+        ${open?"":`<div class="desc" style="color:#c2410c;font-weight:700">Lås upp: ⭐⭐ på ${lv.id==="m1"?"nivå 2 i båda klaverna":"nivån innan"}</div>`}
         <div class="stars">${"⭐".repeat(st)}<span style="opacity:.2">${"⭐".repeat(3-st)}</span></div>`;
       b.onclick=()=>{
         if(!open){ b.animate([{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"none"}],{duration:300});
@@ -503,6 +505,8 @@ function finish(){
   if(gained>0){ ns.innerHTML=`Nytt klistermärke: <span style="font-size:2rem">${STICKERS.slice(stickersFor(beforeStars),stickersFor(after)).join(" ")}</span>`; ns.classList.add("show"); }
   const idx=ALL_LEVELS.findIndex(l=>l.id===lv.id); const nxt=ALL_LEVELS[idx+1];
   $("nextBtn").style.display = nxt && unlocked(nxt) ? "" : "none";
+  if(stars<NEED && (save.stars[lv.id]||0)<NEED && nxt && !unlocked(nxt))
+    $("resTitle").textContent = "Bra kämpat! Spela en gång till – med två stjärnor öppnas nästa nivå 💪";
   $("nextBtn").onclick=()=>startLevel(nxt);
   $("againBtn").onclick=()=>startLevel(lv);
   show("result");
