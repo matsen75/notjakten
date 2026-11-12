@@ -290,6 +290,7 @@ h2{margin:0 0 8px;font-weight:800}
     <label><input type="checkbox" id="optLabels"> Visa notnamn på tangenterna</label>
     <label><input type="checkbox" id="optOctave"> Rätt oktav krävs (svårare)</label>
     <label><input type="checkbox" id="optSound"> Ljud</label>
+    <label><input type="checkbox" id="optAwake"> Håll skärmen tänd när jag spelar</label>
     <div class="midiState" id="midiState">🎹 Har du ett digitalpiano med USB/MIDI? Koppla in det så kan du svara genom att spela på riktigt (fungerar i Chrome och Edge).</div>
     <div class="row" style="justify-content:space-between">
       <button class="btn small ghost" id="resetBtn">Nollställ allt</button>
@@ -342,7 +343,7 @@ const OOPS = ["Nästan! Testa igen 😊","Ingen fara – försök igen!","Hmm, t
 
 /* ---------- Save ---------- */
 const SAVE_KEY="notjakten-v1";
-let save = {name:"", stars:{}, points:0, settings:{labels:true, octave:false, sound:true}};
+let save = {name:"", stars:{}, points:0, settings:{labels:true, octave:false, sound:true, awake:true}};
 try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s) save={...save,...s,settings:{...save.settings,...(s.settings||{})}}; }catch(e){}
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
 const totalStars = ()=>Object.values(save.stars).reduce((a,b)=>a+b,0);
@@ -370,7 +371,29 @@ function sndWin(){ [0,4,7,12,7,12].forEach((s,k)=>tone(mfreq(72+s),.5,.15,"trian
 /* ---------- Helpers ---------- */
 const $ = id=>document.getElementById(id);
 const pick = a=>a[Math.floor(Math.random()*a.length)];
-function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===id)); window.scrollTo(0,0); }
+function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===id)); window.scrollTo(0,0); updateWake(); }
+
+/* ---------- Håll skärmen tänd under spelet (Screen Wake Lock) ---------- */
+let wakeLock=null, wakeBusy=false;
+const wantWake = ()=> save.settings.awake && ["game","boss","result"].some(id=>$(id).classList.contains("active"));
+async function updateWake(){
+  if(!("wakeLock" in navigator) || wakeBusy) return;
+  wakeBusy=true;
+  try{
+    if(wantWake() && !wakeLock && document.visibilityState==="visible"){
+      const w = await navigator.wakeLock.request("screen");
+      w.addEventListener("release",()=>{ if(wakeLock===w) wakeLock=null; });
+      wakeLock = w;
+    }
+    // släpp låset om man har lämnat spelet (även om det hände medan vi väntade ovan)
+    if(!wantWake() && wakeLock){ const w=wakeLock; wakeLock=null; await w.release(); }
+  }catch(e){ wakeBusy=false; return; /* stöds inte eller nekades – spelet fungerar ändå */ }
+  wakeBusy=false;
+  // byttes skärm medan vi väntade? Kör en gång till.
+  if(wantWake()!==!!wakeLock && document.visibilityState==="visible") updateWake();
+}
+// Webbläsaren släpper låset när appen göms – ta det igen när man kommer tillbaka
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") updateWake(); });
 function confetti(n=80){
   const cols=["#f97316","#facc15","#22c55e","#3b82f6","#a855f7","#ec4899"];
   for(let k=0;k<n;k++){
@@ -1052,11 +1075,11 @@ initMidi();
 
 /* ---------- Settings ---------- */
 $("settingsBtn").onclick=()=>{
-  $("optLabels").checked=save.settings.labels; $("optOctave").checked=save.settings.octave; $("optSound").checked=save.settings.sound;
+  $("optLabels").checked=save.settings.labels; $("optOctave").checked=save.settings.octave; $("optSound").checked=save.settings.sound; $("optAwake").checked=save.settings.awake;
   $("settingsModal").classList.add("show");
 };
 $("closeSettings").onclick=()=>{
-  save.settings={labels:$("optLabels").checked, octave:$("optOctave").checked, sound:$("optSound").checked}; persist();
+  save.settings={labels:$("optLabels").checked, octave:$("optOctave").checked, sound:$("optSound").checked, awake:$("optAwake").checked}; persist(); updateWake();
   $("settingsModal").classList.remove("show");
 };
 // Två tryck i stället för confirm(), som blockeras i vissa webbläsare/hemskärmsappar
