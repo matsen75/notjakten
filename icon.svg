@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <radialGradient id="body" cx=".5" cy=".35" r=".7">
+      <stop offset="0" stop-color="#a0673a"/>
+      <stop offset="1" stop-color="#6b3f1f"/>
+    </radialGradient>
+  </defs>
+
+  <!-- bakgrund (heltäckande, iOS/Android rundar hörnen själva) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- notlinjer i bakgrunden -->
+  <g stroke="#fff" stroke-opacity=".28" stroke-width="7" stroke-linecap="round">
+    <line x1="0" y1="190" x2="512" y2="190"/>
+    <line x1="0" y1="230" x2="512" y2="230"/>
+    <line x1="0" y1="270" x2="512" y2="270"/>
+    <line x1="0" y1="310" x2="512" y2="310"/>
+    <line x1="0" y1="350" x2="512" y2="350"/>
+  </g>
+
+  <!-- ugglan -->
+  <g>
+    <!-- örontofsar -->
+    <path d="M150 190 L132 112 L210 160 Z" fill="#6b3f1f"/>
+    <path d="M362 190 L380 112 L302 160 Z" fill="#6b3f1f"/>
+    <!-- kropp -->
+    <ellipse cx="256" cy="295" rx="140" ry="150" fill="url(#body)"/>
+    <!-- vingar -->
+    <path d="M122 280 Q96 360 150 420 Q160 350 150 290 Z" fill="#5a3418"/>
+    <path d="M390 280 Q416 360 362 420 Q352 350 362 290 Z" fill="#5a3418"/>
+    <!-- mage -->
+    <ellipse cx="256" cy="350" rx="88" ry="88" fill="#fcd9b6"/>
+    <g fill="none" stroke="#e8a874" stroke-width="7" stroke-linecap="round">
+      <path d="M222 330 q12 12 24 0"/><path d="M266 330 q12 12 24 0"/>
+      <path d="M200 365 q12 12 24 0"/><path d="M244 365 q12 12 24 0"/><path d="M288 365 q12 12 24 0"/>
+      <path d="M222 400 q12 12 24 0"/><path d="M266 400 q12 12 24 0"/>
+    </g>
+    <!-- ögon -->
+    <circle cx="198" cy="235" r="62" fill="#facc15"/>
+    <circle cx="314" cy="235" r="62" fill="#facc15"/>
+    <circle cx="198" cy="235" r="49" fill="#fff"/>
+    <circle cx="314" cy="235" r="49" fill="#fff"/>
+    <circle cx="206" cy="240" r="27" fill="#1e1b4b"/>
+    <circle cx="306" cy="240" r="27" fill="#1e1b4b"/>
+    <circle cx="215" cy="229" r="9" fill="#fff"/>
+    <circle cx="315" cy="229" r="9" fill="#fff"/>
+    <!-- näbb -->
+    <path d="M238 278 L274 278 L256 312 Z" fill="#f97316"/>
+    <!-- fötter -->
+    <g fill="#f97316">
+      <ellipse cx="216" cy="440" rx="24" ry="11"/>
+      <ellipse cx="296" cy="440" rx="24" ry="11"/>
+    </g>
+  </g>
+
+  <!-- not (åttondel) -->
+  <g transform="translate(398 128) rotate(12)">
+    <rect x="18" y="-78" width="10" height="84" rx="4" fill="#fff"/>
+    <path d="M24 -78 q38 12 30 54 q-6 -26 -30 -28 Z" fill="#fff"/>
+    <ellipse cx="6" cy="8" rx="24" ry="17" transform="rotate(-22 6 8)" fill="#fff"/>
+  </g>
+</svg>
