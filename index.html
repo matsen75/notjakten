@@ -288,7 +288,6 @@ h2{margin:0 0 8px;font-weight:800}
   <div class="card settings">
     <h2>Inställningar</h2>
     <label><input type="checkbox" id="optLabels"> Visa notnamn på tangenterna</label>
-    <label><input type="checkbox" id="optOctave"> Rätt oktav krävs (svårare)</label>
     <label><input type="checkbox" id="optSound"> Ljud</label>
     <label><input type="checkbox" id="optAwake"> Håll skärmen tänd när jag spelar</label>
     <div class="midiState" id="midiState">🎹 Har du ett digitalpiano med USB/MIDI? Koppla in det så kan du svara genom att spela på riktigt (fungerar i Chrome och Edge).</div>
@@ -343,7 +342,7 @@ const OOPS = ["Nästan! Testa igen 😊","Ingen fara – försök igen!","Hmm, t
 
 /* ---------- Save ---------- */
 const SAVE_KEY="notjakten-v1";
-let save = {name:"", stars:{}, points:0, settings:{labels:true, octave:false, sound:true, awake:true}};
+let save = {name:"", stars:{}, points:0, settings:{labels:true, sound:true, awake:true}};
 try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s) save={...save,...s,settings:{...save.settings,...(s.settings||{})}}; }catch(e){}
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
 const totalStars = ()=>Object.values(save.stars).reduce((a,b)=>a+b,0);
@@ -579,7 +578,7 @@ function timeUp(){
 }
 function isRight(m){
   const t=midi(G.cur.note);
-  return save.settings.octave ? m===t : ((m-t)%12+12)%12===0;
+  return m===t;   // rätt tangent i rätt oktav krävs
 }
 function answer(m){
   if(!G || G.busy || !$("game").classList.contains("active")) return;
@@ -613,7 +612,9 @@ function answer(m){
     sndBad();
     const g=$("noteG"); g.classList.remove("note-in","note-bad"); void g.getBoundingClientRect(); g.classList.add("note-bad");
     $("coachFace").textContent="🤔";
-    say(pick(OOPS));
+    const t=midi(G.cur.note);
+    if(m%12===t%12) say(m>t ? "Rätt namn, men för högt! Prova samma not längre ner ⬅️" : "Rätt namn, men för lågt! Prova samma not längre upp ➡️");
+    else say(pick(OOPS));
     showHint(G.noteMiss>=2);
   }
 }
@@ -1048,16 +1049,6 @@ cv.addEventListener("pointermove",e=>{ if(B && (e.pointerType==="mouse" || e.but
 });
 $("bossQuit").onclick=()=>{ if(B) B.running=false; B=null; renderMap(); show("map"); };
 
-/* ---------- Keyboard shortcuts (computer keyboard letters) ---------- */
-document.addEventListener("keydown",e=>{
-  if(!$("game").classList.contains("active")||!G||e.repeat) return;
-  const k=e.key.toUpperCase(); const i=SV.indexOf(k==="B"?"H":k); if(i<0) return;
-  // pick the matching key closest to the target note
-  const t=midi(G.cur.note); let best=null;
-  Object.keys(keyEls).map(Number).filter(m=>m%12===SEMI[i]).forEach(m=>{ if(best===null||Math.abs(m-t)<Math.abs(best-t)) best=m; });
-  if(save.settings.octave) best = Object.keys(keyEls).map(Number).find(m=>m%12===SEMI[i]); // lowest – no free octave help
-  if(best!=null) keyDown(keyEls[best]);
-});
 
 /* ---------- MIDI ---------- */
 function initMidi(){
@@ -1075,11 +1066,11 @@ initMidi();
 
 /* ---------- Settings ---------- */
 $("settingsBtn").onclick=()=>{
-  $("optLabels").checked=save.settings.labels; $("optOctave").checked=save.settings.octave; $("optSound").checked=save.settings.sound; $("optAwake").checked=save.settings.awake;
+  $("optLabels").checked=save.settings.labels; $("optSound").checked=save.settings.sound; $("optAwake").checked=save.settings.awake;
   $("settingsModal").classList.add("show");
 };
 $("closeSettings").onclick=()=>{
-  save.settings={labels:$("optLabels").checked, octave:$("optOctave").checked, sound:$("optSound").checked, awake:$("optAwake").checked}; persist(); updateWake();
+  save.settings={labels:$("optLabels").checked, sound:$("optSound").checked, awake:$("optAwake").checked}; persist(); updateWake();
   $("settingsModal").classList.remove("show");
 };
 // Två tryck i stället för confirm(), som blockeras i vissa webbläsare/hemskärmsappar
