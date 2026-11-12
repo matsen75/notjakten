@@ -120,6 +120,8 @@ h2{margin:0 0 8px;font-weight:800}
 .stat small{display:block;color:var(--muted);font-weight:600}
 .newSticker{font-size:1.2rem;font-weight:800;background:#fef3c7;border-radius:16px;padding:8px 16px;display:none}
 .newSticker.show{display:block;animation:pulse .6s}
+.resInfo{font-weight:700;color:#c2410c;max-width:420px}
+.resInfo:empty{display:none}
 .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 
 /* Settings */
@@ -255,6 +257,7 @@ h2{margin:0 0 8px;font-weight:800}
     <div class="bigStars" id="resStars"><span>⭐</span><span>⭐</span><span>⭐</span></div>
     <div class="stats" id="resStats"></div>
     <div class="newSticker" id="newSticker"></div>
+    <div class="resInfo" id="resInfo"></div>
     <div class="row">
       <button class="btn ghost" id="againBtn">Igen 🔁</button>
       <button class="btn" id="nextBtn">Nästa ➜</button>
@@ -381,9 +384,13 @@ function clefIcon(){
     <text x="24" y="76" font-family="Noto Music, Segoe UI Symbol" font-size="62" fill="url(#fkClef)" stroke="#2d1f42" stroke-width="1" stroke-linejoin="round" paint-order="stroke">𝄢</text>
   </svg>`;
 }
+// Bossen kräver ⭐⭐⭐ på alla övriga nivåer i samma klav
+function bossPrereqs(lv){ return WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels.filter(l=>!l.boss); }
+function bossMissing(lv){ return bossPrereqs(lv).filter(l=>(save.stars[l.id]||0)<3); }
 function unlocked(lv){
   const idx = ALL_LEVELS.findIndex(l=>l.id===lv.id);
   if(lv.id==="t1"||lv.id==="b1") return true;
+  if(lv.boss) return bossMissing(lv).length===0;
   if(lv.id==="m1") return (save.stars.t2||0)>=NEED && (save.stars.b2||0)>=NEED;
   const prev = ALL_LEVELS[idx-1]; return (save.stars[prev.id]||0)>=NEED;
 }
@@ -400,7 +407,9 @@ function renderMap(){
       const b=document.createElement("button"); b.className="lvl"+(lv.boss?" bossLvl":"")+(open?"":" locked");
       b.innerHTML=`<span class="num" style="background:${lv.boss?"#dc2626":w.color}">Nivå ${i+1}${lv.boss?" · BOSS":""}</span>
         <div class="name">${lv.name}</div><div class="desc">${lv.desc}</div>
-        ${open?"":`<div class="desc" style="color:#c2410c;font-weight:700">Lås upp: ⭐⭐ på ${lv.id==="m1"?"nivå 2 i båda klaverna":"nivån innan"}</div>`}
+        ${open?"":`<div class="desc" style="color:#c2410c;font-weight:700">${lv.boss
+          ? `Lås upp: ⭐⭐⭐ på alla nivåer innan (${bossPrereqs(lv).length-bossMissing(lv).length} av ${bossPrereqs(lv).length} klara)`
+          : `Lås upp: ⭐⭐ på ${lv.id==="m1"?"nivå 2 i båda klaverna":"nivån innan"}`}</div>`}
         <div class="stars">${"⭐".repeat(st)}<span style="opacity:.2">${"⭐".repeat(3-st)}</span></div>`;
       b.onclick=()=>{
         if(!open){ b.animate([{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"none"}],{duration:300});
@@ -619,8 +628,17 @@ function showResult({lv, stars, score, title, stats, face}){
   if(gained>0){ ns.innerHTML=`Nytt klistermärke: <span style="font-size:2rem">${STICKERS.slice(stickersFor(beforeStars),stickersFor(after)).join(" ")}</span>`; ns.classList.add("show"); }
   const idx=ALL_LEVELS.findIndex(l=>l.id===lv.id); const nxt=ALL_LEVELS[idx+1];
   $("nextBtn").style.display = stars>0 && nxt && unlocked(nxt) ? "" : "none";
-  if(stars>0 && stars<NEED && (save.stars[lv.id]||0)<NEED && nxt && !unlocked(nxt))
+  if(stars>0 && stars<NEED && (save.stars[lv.id]||0)<NEED && nxt && !unlocked(nxt) && !nxt.boss)
     $("resTitle").textContent = "Bra kämpat! Spela en gång till – med två stjärnor öppnas nästa nivå 💪";
+  // Påminnelse om vad som krävs för bossen
+  const ri=$("resInfo"); ri.textContent="";
+  const wl=WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels, boss=wl.find(l=>l.boss);
+  if(boss && !lv.boss && !unlocked(boss)){
+    const miss=bossMissing(boss);
+    ri.textContent = `${BOSSES[boss.boss].emoji} Bossen väntar! Få ⭐⭐⭐ på alla nivåer för att möta den – ${miss.length===1?"bara 1 nivå kvar":`${miss.length} nivåer kvar`}.`;
+  } else if(boss && !lv.boss && stars>0 && unlocked(boss) && !(save.stars[boss.id])){
+    ri.textContent = `${BOSSES[boss.boss].emoji} Du har ⭐⭐⭐ på alla nivåer – bossen är upplåst!`;
+  }
   $("nextBtn").onclick=()=>startLevel(nxt);
   $("againBtn").onclick=()=>startLevel(lv);
   show("result");
