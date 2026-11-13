@@ -364,6 +364,7 @@ const WORLDS = [
   {key:"mix", name:"🏆 Mästarprovet", color:"var(--mix)", levels:[
     {id:"m1", name:"Båda händerna", desc:"G-klav och F-klav blandat!", clef:"mix", parts:[["treble","C4","C5"],["bass","C3","C4"]]},
     {id:"m2", name:"Notmästaren", desc:"Allt blandat – för proffs!", clef:"mix", parts:[["treble","A3","A5"],["bass","E2","E4"]]},
+    {id:"m3", name:"Hjälp Mozart! 🎩", desc:"Mozart har fastnat i Rondo alla turca – spela noten han glömt!", clef:"mix", parts:[["treble","A4","A5"],["bass","C3","C4"]], arcade:"mozart"},
   ]},
 ];
 const ALL_LEVELS = WORLDS.flatMap(w=>w.levels.map(l=>({...l,color:w.color})));
@@ -1101,6 +1102,8 @@ const ARCADES = {
     story:"Notmössen har flyttat in i köket! De gömmer sig i kakburkar, kastruller, lådor och mushål och tittar fram med en not var. Spela rätt not på pianot så fångar du musen innan den hinner gömma sig igen."},
   space:{title:"Rymdlasern 👾", face:"👾", go:"Ladda lasern! ⚡", win:"Rymdisarna flydde hem till sin planet! 🚀",
     story:"Elaka rymdisar kommer med stulna noter! Ugglans notlaserkanon skjuter när du spelar rätt not på pianot. Skjut ner dem innan de når basen!"},
+  mozart:{title:"Hjälp Mozart! 🎩", face:"🎼", go:"Börja spela! 🎹", win:"Rondo alla turca är klart! Mozart tackar för hjälpen 🎩🎉", missLabel:"Mozart kom på själv",
+    story:"Wolfgang Amadeus Mozart skriver på sitt Rondo alla turca – men ibland fastnar han! När musiken stannar och det står ett ? i noterna: spela noten som fattas på pianot. Både G-klav och F-klav, rätt oktav. Du har tre försök på varje not."},
   moto:{title:"Motocrosshoppet 🏍️", face:"🏍️", go:"Gasa! 🏁", win:"Vilken trickshow! Publiken jublar! 🏆", missLabel:"Missade noter",
     story:"Motocrossföraren ska göra häftiga trick i hoppet! Före varje hopp kommer två eller tre noter. Spela alla innan tiden tar slut – i vilken ordning du vill – så lyckas tricket! Du har tre försök på varje not."},
   maze:{title:"Labyrinten 🌿", missLabel:"Fångad av Tore", face:"🦉", go:"Spring! 🏃", win:"Ugglan hittade ut! Tore blev kvar i labyrinten 🎉",
@@ -1183,7 +1186,7 @@ function arcHud(){
 }
 const MAZE_CATCHES = 3;   // så många gånger får Tore ta ugglan
 let arcSayT=null;
-function arcSay(t){ const e=$("arcSays"); e.textContent=t; e.classList.add("show"); clearTimeout(arcSayT); arcSayT=setTimeout(()=>e.classList.remove("show"),2000); }
+function arcSay(t){ if(A && A.mode==="mozart"){ A.msay=t; A.msayT=3.2; return; } const e=$("arcSays"); e.textContent=t; e.classList.add("show"); clearTimeout(arcSayT); arcSayT=setTimeout(()=>e.classList.remove("show"),2000); }
 function arcAnswer(m){
   if(!A.running || A.over) return;
   if(![0,2,4,5,7,9,11].includes(m%12)){ arcSay("Psst! Alla noter här är vita tangenter 😉"); return; }
@@ -1266,7 +1269,262 @@ function timeBar(x,y,w,f){
   ax.beginPath(); ax.roundRect ? ax.roundRect(x-w/2,y,w*Math.max(0,f),7,4) : ax.rect(x-w/2,y,w*Math.max(0,f),7); ax.fill();
 }
 
+const RONDO={beats:96.0,marks:[0.0, 16.0, 32.0, 64.0],bars:[1.0, 3.0, 5.0, 7.0, 9.0, 11.0, 13.0, 15.0, 16.0, 17.0, 19.0, 21.0, 23.0, 25.0, 27.0, 29.0, 31.0, 32.0, 33.0, 35.0, 37.0, 39.0, 41.0, 43.0, 45.0, 47.0, 49.0, 51.0, 53.0, 55.0, 57.0, 59.0, 61.0, 63.0, 64.0, 65.0, 67.0, 69.0, 71.0, 73.0, 75.0, 77.0, 79.0, 81.0, 83.0, 85.0, 87.0, 89.0, 91.0, 93.0, 95.0, 96.0],ev:[[0.0,71,34,0,1,0.25,0],[0.25,69,33,0,1,0.25,0],[0.5,68,32,1,1,0.25,0],[0.75,69,33,0,1,0.25,0],[1.0,57,26,0,0,0.5,0],[1.0,72,35,0,1,0.5,0],[1.5,60,28,0,0,0.5,0],[1.5,64,30,0,0,0.5,0],[2.0,60,28,0,0,0.5,0],[2.0,64,30,0,0,0.5,0],[2.0,74,36,0,1,0.25,0],[2.25,72,35,0,1,0.25,0],[2.5,60,28,0,0,0.5,0],[2.5,64,30,0,0,0.5,0],[2.5,71,34,0,1,0.25,0],[2.75,72,35,0,1,0.25,0],[3.0,57,26,0,0,0.5,0],[3.0,76,37,0,1,0.5,0],[3.5,60,28,0,0,0.5,0],[3.5,64,30,0,0,0.5,0],[4.0,60,28,0,0,0.5,0],[4.0,64,30,0,0,0.5,0],[4.0,77,38,0,1,0.25,0],[4.25,76,37,0,1,0.25,0],[4.5,60,28,0,0,0.5,0],[4.5,64,30,0,0,0.5,0],[4.5,75,36,1,1,0.25,0],[4.75,76,37,0,1,0.25,0],[5.0,57,26,0,0,0.5,0],[5.0,83,41,0,1,0.25,0],[5.25,81,40,0,1,0.25,0],[5.5,60,28,0,0,0.5,0],[5.5,64,30,0,0,0.5,0],[5.5,80,39,1,1,0.25,0],[5.75,81,40,0,1,0.25,0],[6.0,57,26,0,0,0.5,0],[6.0,83,41,0,1,0.25,0],[6.25,81,40,0,1,0.25,0],[6.5,60,28,0,0,0.5,0],[6.5,64,30,0,0,0.5,0],[6.5,80,39,1,1,0.25,0],[6.75,81,40,0,1,0.25,0],[7.0,57,26,0,0,0.5,0],[7.0,84,42,0,1,1.0,0],[7.5,60,28,0,0,0.5,0],[7.5,64,30,0,0,0.5,0],[8.0,60,28,0,0,0.5,0],[8.0,64,30,0,0,0.5,0],[8.0,81,40,0,1,0.5,0],[8.5,60,28,0,0,0.5,0],[8.5,64,30,0,0,0.5,0],[8.5,84,42,0,1,0.5,0],[8.8,79,39,2,1,0,1],[8.9,81,40,0,1,0,1],[9.0,52,23,0,0,0.5,0],[9.0,83,41,0,1,0.5,0],[9.5,59,27,0,0,0.5,0],[9.5,64,30,0,0,0.5,0],[9.5,78,38,1,1,0.5,0],[9.5,81,40,0,1,0.5,0],[10.0,59,27,0,0,0.5,0],[10.0,64,30,0,0,0.5,0],[10.0,76,37,0,1,0.5,0],[10.0,79,39,0,1,0.5,0],[10.5,59,27,0,0,0.5,0],[10.5,64,30,0,0,0.5,0],[10.5,78,38,1,1,0.5,0],[10.5,81,40,0,1,0.5,0],[10.8,79,39,0,1,0,1],[10.9,81,40,0,1,0,1],[11.0,52,23,0,0,0.5,0],[11.0,83,41,0,1,0.5,0],[11.5,59,27,0,0,0.5,0],[11.5,64,30,0,0,0.5,0],[11.5,78,38,1,1,0.5,0],[11.5,81,40,0,1,0.5,0],[12.0,59,27,0,0,0.5,0],[12.0,64,30,0,0,0.5,0],[12.0,76,37,0,1,0.5,0],[12.0,79,39,0,1,0.5,0],[12.5,59,27,0,0,0.5,0],[12.5,64,30,0,0,0.5,0],[12.5,78,38,1,1,0.5,0],[12.5,81,40,0,1,0.5,0],[12.8,79,39,0,1,0,1],[12.9,81,40,0,1,0,1],[13.0,52,23,0,0,0.5,0],[13.0,83,41,0,1,0.5,0],[13.5,59,27,0,0,0.5,0],[13.5,64,30,0,0,0.5,0],[13.5,78,38,1,1,0.5,0],[13.5,81,40,0,1,0.5,0],[14.0,47,20,0,0,0.5,0],[14.0,76,37,0,1,0.5,0],[14.0,79,39,0,1,0.5,0],[14.5,59,27,0,0,0.5,0],[14.5,75,36,1,1,0.5,0],[14.5,78,38,1,1,0.5,0],[15.0,52,23,0,0,1.0,0],[15.0,76,37,0,1,1.0,0],[16.0,71,34,0,1,0.25,0],[16.25,69,33,0,1,0.25,0],[16.5,68,32,1,1,0.25,0],[16.75,69,33,0,1,0.25,0],[17.0,57,26,0,0,0.5,0],[17.0,72,35,0,1,0.5,0],[17.5,60,28,0,0,0.5,0],[17.5,64,30,0,0,0.5,0],[18.0,60,28,0,0,0.5,0],[18.0,64,30,0,0,0.5,0],[18.0,74,36,0,1,0.25,0],[18.25,72,35,0,1,0.25,0],[18.5,60,28,0,0,0.5,0],[18.5,64,30,0,0,0.5,0],[18.5,71,34,0,1,0.25,0],[18.75,72,35,0,1,0.25,0],[19.0,57,26,0,0,0.5,0],[19.0,76,37,0,1,0.5,0],[19.5,60,28,0,0,0.5,0],[19.5,64,30,0,0,0.5,0],[20.0,60,28,0,0,0.5,0],[20.0,64,30,0,0,0.5,0],[20.0,77,38,0,1,0.25,0],[20.25,76,37,0,1,0.25,0],[20.5,60,28,0,0,0.5,0],[20.5,64,30,0,0,0.5,0],[20.5,75,36,1,1,0.25,0],[20.75,76,37,0,1,0.25,0],[21.0,57,26,0,0,0.5,0],[21.0,83,41,0,1,0.25,0],[21.25,81,40,0,1,0.25,0],[21.5,60,28,0,0,0.5,0],[21.5,64,30,0,0,0.5,0],[21.5,80,39,1,1,0.25,0],[21.75,81,40,0,1,0.25,0],[22.0,57,26,0,0,0.5,0],[22.0,83,41,0,1,0.25,0],[22.25,81,40,0,1,0.25,0],[22.5,60,28,0,0,0.5,0],[22.5,64,30,0,0,0.5,0],[22.5,80,39,1,1,0.25,0],[22.75,81,40,0,1,0.25,0],[23.0,57,26,0,0,0.5,0],[23.0,84,42,0,1,1.0,0],[23.5,60,28,0,0,0.5,0],[23.5,64,30,0,0,0.5,0],[24.0,60,28,0,0,0.5,0],[24.0,64,30,0,0,0.5,0],[24.0,81,40,0,1,0.5,0],[24.5,60,28,0,0,0.5,0],[24.5,64,30,0,0,0.5,0],[24.5,84,42,0,1,0.5,0],[24.8,79,39,2,1,0,1],[24.9,81,40,0,1,0,1],[25.0,52,23,0,0,0.5,0],[25.0,83,41,0,1,0.5,0],[25.5,59,27,0,0,0.5,0],[25.5,64,30,0,0,0.5,0],[25.5,78,38,1,1,0.5,0],[25.5,81,40,0,1,0.5,0],[26.0,59,27,0,0,0.5,0],[26.0,64,30,0,0,0.5,0],[26.0,76,37,0,1,0.5,0],[26.0,79,39,0,1,0.5,0],[26.5,59,27,0,0,0.5,0],[26.5,64,30,0,0,0.5,0],[26.5,78,38,1,1,0.5,0],[26.5,81,40,0,1,0.5,0],[26.8,79,39,0,1,0,1],[26.9,81,40,0,1,0,1],[27.0,52,23,0,0,0.5,0],[27.0,83,41,0,1,0.5,0],[27.5,59,27,0,0,0.5,0],[27.5,64,30,0,0,0.5,0],[27.5,78,38,1,1,0.5,0],[27.5,81,40,0,1,0.5,0],[28.0,59,27,0,0,0.5,0],[28.0,64,30,0,0,0.5,0],[28.0,76,37,0,1,0.5,0],[28.0,79,39,0,1,0.5,0],[28.5,59,27,0,0,0.5,0],[28.5,64,30,0,0,0.5,0],[28.5,78,38,1,1,0.5,0],[28.5,81,40,0,1,0.5,0],[28.8,79,39,0,1,0,1],[28.9,81,40,0,1,0,1],[29.0,52,23,0,0,0.5,0],[29.0,83,41,0,1,0.5,0],[29.5,59,27,0,0,0.5,0],[29.5,64,30,0,0,0.5,0],[29.5,78,38,1,1,0.5,0],[29.5,81,40,0,1,0.5,0],[30.0,47,20,0,0,0.5,0],[30.0,76,37,0,1,0.5,0],[30.0,79,39,0,1,0.5,0],[30.5,59,27,0,0,0.5,0],[30.5,75,36,1,1,0.5,0],[30.5,78,38,1,1,0.5,0],[31.0,52,23,0,0,1.0,0],[31.0,76,37,0,1,1.0,0],[32.0,72,35,0,1,0.5,0],[32.0,76,37,0,1,0.5,0],[32.5,74,36,2,1,0.5,0],[32.5,77,38,2,1,0.5,0],[33.0,48,21,0,0,0.5,0],[33.0,76,37,0,1,0.5,0],[33.0,79,39,0,1,0.5,0],[33.5,60,28,0,0,0.5,0],[33.5,76,37,0,1,0.5,0],[33.5,79,39,0,1,0.5,0],[34.0,52,23,0,0,0.5,0],[34.0,81,40,0,1,0.25,0],[34.25,79,39,0,1,0.25,0],[34.5,64,30,0,0,0.5,0],[34.5,77,38,0,1,0.25,0],[34.75,76,37,0,1,0.25,0],[35.0,55,25,0,0,1.0,0],[35.0,71,34,0,1,0.5,0],[35.0,74,36,0,1,1.0,0],[35.5,67,32,0,1,0.5,0],[36.0,72,35,0,1,0.5,0],[36.0,76,37,0,1,0.5,0],[36.5,74,36,0,1,0.5,0],[36.5,77,38,0,1,0.5,0],[37.0,48,21,0,0,0.5,0],[37.0,76,37,0,1,0.5,0],[37.0,79,39,0,1,0.5,0],[37.5,60,28,0,0,0.5,0],[37.5,76,37,0,1,0.5,0],[37.5,79,39,0,1,0.5,0],[38.0,52,23,0,0,0.5,0],[38.0,81,40,0,1,0.25,0],[38.25,79,39,0,1,0.25,0],[38.5,64,30,0,0,0.5,0],[38.5,77,38,0,1,0.25,0],[38.75,76,37,0,1,0.25,0],[39.0,55,25,0,0,1.0,0],[39.0,71,34,0,1,1.0,0],[39.0,74,36,0,1,1.0,0],[40.0,69,33,0,1,0.5,0],[40.0,72,35,0,1,0.5,0],[40.5,71,34,0,1,0.5,0],[40.5,74,36,0,1,0.5,0],[41.0,45,19,0,0,0.5,0],[41.0,72,35,0,1,0.5,0],[41.0,76,37,0,1,0.5,0],[41.5,57,26,0,0,0.5,0],[41.5,72,35,0,1,0.5,0],[41.5,76,37,0,1,0.5,0],[42.0,48,21,0,0,0.5,0],[42.0,77,38,0,1,0.25,0],[42.25,76,37,0,1,0.25,0],[42.5,60,28,0,0,0.5,0],[42.5,74,36,0,1,0.25,0],[42.75,72,35,0,1,0.25,0],[43.0,52,23,0,0,1.0,0],[43.0,68,32,1,1,0.5,0],[43.0,71,34,0,1,1.0,0],[43.5,64,30,0,1,0.5,0],[44.0,69,33,0,1,0.5,0],[44.0,72,35,0,1,0.5,0],[44.5,71,34,0,1,0.5,0],[44.5,74,36,0,1,0.5,0],[45.0,45,19,0,0,0.5,0],[45.0,72,35,0,1,0.5,0],[45.0,76,37,0,1,0.5,0],[45.5,57,26,0,0,0.5,0],[45.5,72,35,0,1,0.5,0],[45.5,76,37,0,1,0.5,0],[46.0,48,21,0,0,0.5,0],[46.0,77,38,0,1,0.25,0],[46.25,76,37,0,1,0.25,0],[46.5,60,28,0,0,0.5,0],[46.5,74,36,0,1,0.25,0],[46.75,72,35,0,1,0.25,0],[47.0,52,23,0,0,1.0,0],[47.0,68,32,1,1,1.0,0],[47.0,71,34,0,1,1.0,0],[48.0,71,34,0,1,0.25,0],[48.25,69,33,0,1,0.25,0],[48.5,68,32,1,1,0.25,0],[48.75,69,33,0,1,0.25,0],[49.0,57,26,0,0,0.5,0],[49.0,72,35,0,1,0.5,0],[49.5,60,28,0,0,0.5,0],[49.5,64,30,0,0,0.5,0],[50.0,60,28,0,0,0.5,0],[50.0,64,30,0,0,0.5,0],[50.0,74,36,0,1,0.25,0],[50.25,72,35,0,1,0.25,0],[50.5,60,28,0,0,0.5,0],[50.5,64,30,0,0,0.5,0],[50.5,71,34,0,1,0.25,0],[50.75,72,35,0,1,0.25,0],[51.0,57,26,0,0,0.5,0],[51.0,76,37,0,1,0.5,0],[51.5,60,28,0,0,0.5,0],[51.5,64,30,0,0,0.5,0],[52.0,60,28,0,0,0.5,0],[52.0,64,30,0,0,0.5,0],[52.0,77,38,0,1,0.25,0],[52.25,76,37,0,1,0.25,0],[52.5,60,28,0,0,0.5,0],[52.5,64,30,0,0,0.5,0],[52.5,75,36,1,1,0.25,0],[52.75,76,37,0,1,0.25,0],[53.0,57,26,0,0,0.5,0],[53.0,83,41,0,1,0.25,0],[53.25,81,40,0,1,0.25,0],[53.5,60,28,0,0,0.5,0],[53.5,64,30,0,0,0.5,0],[53.5,80,39,1,1,0.25,0],[53.75,81,40,0,1,0.25,0],[54.0,57,26,0,0,0.5,0],[54.0,83,41,0,1,0.25,0],[54.25,81,40,0,1,0.25,0],[54.5,60,28,0,0,0.5,0],[54.5,64,30,0,0,0.5,0],[54.5,80,39,1,1,0.25,0],[54.75,81,40,0,1,0.25,0],[55.0,53,24,0,0,0.5,0],[55.0,84,42,0,1,1.0,0],[55.5,57,26,0,0,0.5,0],[55.5,63,29,1,0,0.5,0],[56.0,57,26,0,0,0.5,0],[56.0,63,29,1,0,0.5,0],[56.0,81,40,0,1,0.5,0],[56.5,57,26,0,0,0.5,0],[56.5,63,29,1,0,0.5,0],[56.5,83,41,0,1,0.5,0],[57.0,52,23,0,0,0.5,0],[57.0,84,42,0,1,0.5,0],[57.5,57,26,0,0,0.5,0],[57.5,64,30,0,0,0.5,0],[57.5,83,41,0,1,0.5,0],[58.0,50,22,2,0,0.5,0],[58.0,81,40,0,1,0.5,0],[58.5,53,24,0,0,0.5,0],[58.5,59,27,0,0,0.5,0],[58.5,80,39,1,1,0.5,0],[59.0,48,21,0,0,0.5,0],[59.0,81,40,0,1,0.5,0],[59.5,52,23,0,0,0.5,0],[59.5,57,26,0,0,0.5,0],[59.5,76,37,0,1,0.5,0],[60.0,50,22,0,0,0.5,0],[60.0,77,38,0,1,0.5,0],[60.5,53,24,0,0,0.5,0],[60.5,59,27,0,0,0.5,0],[60.5,74,36,0,1,0.5,0],[61.0,52,23,0,0,0.5,0],[61.0,57,26,0,0,0.5,0],[61.0,72,35,0,1,1.0,0],[61.5,52,23,0,0,0.5,0],[61.5,57,26,0,0,0.5,0],[62.0,52,23,0,0,0.5,0],[62.0,56,25,1,0,0.5,0],[62.0,71,34,0,1,0.75,0],[62.5,52,23,0,0,0.5,0],[62.5,56,25,1,0,0.5,0],[62.75,69,33,0,1,0.125,0],[62.875,71,34,0,1,0.125,0],[63.0,45,19,0,0,1.0,0],[63.0,57,26,0,0,1.0,0],[63.0,69,33,0,1,1.0,0],[64.0,72,35,0,1,0.5,0],[64.0,76,37,0,1,0.5,0],[64.5,74,36,2,1,0.5,0],[64.5,77,38,2,1,0.5,0],[65.0,48,21,0,0,0.5,0],[65.0,76,37,0,1,0.5,0],[65.0,79,39,0,1,0.5,0],[65.5,60,28,0,0,0.5,0],[65.5,76,37,0,1,0.5,0],[65.5,79,39,0,1,0.5,0],[66.0,52,23,0,0,0.5,0],[66.0,81,40,0,1,0.25,0],[66.25,79,39,0,1,0.25,0],[66.5,64,30,0,0,0.5,0],[66.5,77,38,0,1,0.25,0],[66.75,76,37,0,1,0.25,0],[67.0,55,25,0,0,1.0,0],[67.0,71,34,0,1,0.5,0],[67.0,74,36,0,1,1.0,0],[67.5,67,32,0,1,0.5,0],[68.0,72,35,0,1,0.5,0],[68.0,76,37,0,1,0.5,0],[68.5,74,36,0,1,0.5,0],[68.5,77,38,0,1,0.5,0],[69.0,48,21,0,0,0.5,0],[69.0,76,37,0,1,0.5,0],[69.0,79,39,0,1,0.5,0],[69.5,60,28,0,0,0.5,0],[69.5,76,37,0,1,0.5,0],[69.5,79,39,0,1,0.5,0],[70.0,52,23,0,0,0.5,0],[70.0,81,40,0,1,0.25,0],[70.25,79,39,0,1,0.25,0],[70.5,64,30,0,0,0.5,0],[70.5,77,38,0,1,0.25,0],[70.75,76,37,0,1,0.25,0],[71.0,55,25,0,0,1.0,0],[71.0,71,34,0,1,1.0,0],[71.0,74,36,0,1,1.0,0],[72.0,69,33,0,1,0.5,0],[72.0,72,35,0,1,0.5,0],[72.5,71,34,0,1,0.5,0],[72.5,74,36,0,1,0.5,0],[73.0,45,19,0,0,0.5,0],[73.0,72,35,0,1,0.5,0],[73.0,76,37,0,1,0.5,0],[73.5,57,26,0,0,0.5,0],[73.5,72,35,0,1,0.5,0],[73.5,76,37,0,1,0.5,0],[74.0,48,21,0,0,0.5,0],[74.0,77,38,0,1,0.25,0],[74.25,76,37,0,1,0.25,0],[74.5,60,28,0,0,0.5,0],[74.5,74,36,0,1,0.25,0],[74.75,72,35,0,1,0.25,0],[75.0,52,23,0,0,1.0,0],[75.0,68,32,1,1,0.5,0],[75.0,71,34,0,1,1.0,0],[75.5,64,30,0,1,0.5,0],[76.0,69,33,0,1,0.5,0],[76.0,72,35,0,1,0.5,0],[76.5,71,34,0,1,0.5,0],[76.5,74,36,0,1,0.5,0],[77.0,45,19,0,0,0.5,0],[77.0,72,35,0,1,0.5,0],[77.0,76,37,0,1,0.5,0],[77.5,57,26,0,0,0.5,0],[77.5,72,35,0,1,0.5,0],[77.5,76,37,0,1,0.5,0],[78.0,48,21,0,0,0.5,0],[78.0,77,38,0,1,0.25,0],[78.25,76,37,0,1,0.25,0],[78.5,60,28,0,0,0.5,0],[78.5,74,36,0,1,0.25,0],[78.75,72,35,0,1,0.25,0],[79.0,52,23,0,0,1.0,0],[79.0,68,32,1,1,1.0,0],[79.0,71,34,0,1,1.0,0],[80.0,71,34,0,1,0.25,0],[80.25,69,33,0,1,0.25,0],[80.5,68,32,1,1,0.25,0],[80.75,69,33,0,1,0.25,0],[81.0,57,26,0,0,0.5,0],[81.0,72,35,0,1,0.5,0],[81.5,60,28,0,0,0.5,0],[81.5,64,30,0,0,0.5,0],[82.0,60,28,0,0,0.5,0],[82.0,64,30,0,0,0.5,0],[82.0,74,36,0,1,0.25,0],[82.25,72,35,0,1,0.25,0],[82.5,60,28,0,0,0.5,0],[82.5,64,30,0,0,0.5,0],[82.5,71,34,0,1,0.25,0],[82.75,72,35,0,1,0.25,0],[83.0,57,26,0,0,0.5,0],[83.0,76,37,0,1,0.5,0],[83.5,60,28,0,0,0.5,0],[83.5,64,30,0,0,0.5,0],[84.0,60,28,0,0,0.5,0],[84.0,64,30,0,0,0.5,0],[84.0,77,38,0,1,0.25,0],[84.25,76,37,0,1,0.25,0],[84.5,60,28,0,0,0.5,0],[84.5,64,30,0,0,0.5,0],[84.5,75,36,1,1,0.25,0],[84.75,76,37,0,1,0.25,0],[85.0,57,26,0,0,0.5,0],[85.0,83,41,0,1,0.25,0],[85.25,81,40,0,1,0.25,0],[85.5,60,28,0,0,0.5,0],[85.5,64,30,0,0,0.5,0],[85.5,80,39,1,1,0.25,0],[85.75,81,40,0,1,0.25,0],[86.0,57,26,0,0,0.5,0],[86.0,83,41,0,1,0.25,0],[86.25,81,40,0,1,0.25,0],[86.5,60,28,0,0,0.5,0],[86.5,64,30,0,0,0.5,0],[86.5,80,39,1,1,0.25,0],[86.75,81,40,0,1,0.25,0],[87.0,53,24,0,0,0.5,0],[87.0,84,42,0,1,1.0,0],[87.5,57,26,0,0,0.5,0],[87.5,63,29,1,0,0.5,0],[88.0,57,26,0,0,0.5,0],[88.0,63,29,1,0,0.5,0],[88.0,81,40,0,1,0.5,0],[88.5,57,26,0,0,0.5,0],[88.5,63,29,1,0,0.5,0],[88.5,83,41,0,1,0.5,0],[89.0,52,23,0,0,0.5,0],[89.0,84,42,0,1,0.5,0],[89.5,57,26,0,0,0.5,0],[89.5,64,30,0,0,0.5,0],[89.5,83,41,0,1,0.5,0],[90.0,50,22,2,0,0.5,0],[90.0,81,40,0,1,0.5,0],[90.5,53,24,0,0,0.5,0],[90.5,59,27,0,0,0.5,0],[90.5,80,39,1,1,0.5,0],[91.0,48,21,0,0,0.5,0],[91.0,81,40,0,1,0.5,0],[91.5,52,23,0,0,0.5,0],[91.5,57,26,0,0,0.5,0],[91.5,76,37,0,1,0.5,0],[92.0,50,22,0,0,0.5,0],[92.0,77,38,0,1,0.5,0],[92.5,53,24,0,0,0.5,0],[92.5,59,27,0,0,0.5,0],[92.5,74,36,0,1,0.5,0],[93.0,52,23,0,0,0.5,0],[93.0,57,26,0,0,0.5,0],[93.0,72,35,0,1,1.0,0],[93.5,52,23,0,0,0.5,0],[93.5,57,26,0,0,0.5,0],[94.0,52,23,0,0,0.5,0],[94.0,56,25,1,0,0.5,0],[94.0,71,34,0,1,0.75,0],[94.5,52,23,0,0,0.5,0],[94.5,56,25,1,0,0.5,0],[94.75,69,33,0,1,0.125,0],[94.875,71,34,0,1,0.125,0],[95.0,45,19,0,0,1.0,0],[95.0,57,26,0,0,1.0,0],[95.0,69,33,0,1,1.0,0]]};
 const MODES = {
+/* ---- Hjälp Mozart: Rondo alla turca (K. 331, sats 3), takt 1–24 med repriser ---- */
+/* Noterna kommer från Craig Sapps Humdrum-utgåva (github.com/craigsapp/mozart-piano-sonatas, sonata11-3.krn).
+   ev: [taktslag, midi, diatonisk tonhöjd, förtecken (0 inget, 1 ♯, -1 ♭, 2 ♮), hand (0 vänster, 1 höger), längd i slag, förslagsnot] */
+mozart:{
+  BPM:84,
+  setup(){
+    A.dark=false; A.goal=999;
+    A.mt=-1.2; A.ptr=0; A.paused=false; A.tries=0; A.msay=""; A.msayT=0; A.mood="enjoy"; A.moodT=0; A.endT=-1;
+    const ev=RONDO.ev;
+    // välj noter som Mozart "glömmer": vita tangenter, ensamma i sin hand, inte förslag
+    const cand=[];
+    ev.forEach((e,k)=>{
+      const [t,m,d,acc,h,dur,g]=e;
+      if(g || acc || dur<.25 || t<1) return;
+      if(h===1 ? (d<33||d>40) : (d<21||d>28)) return;                  // höger: A4–A5, vänster: C3–C4
+      if(ev.some((o,j)=>j!==k && o[4]===h && Math.abs(o[0]-t)<1e-6 && !o[6])) return;   // inte i ett ackord
+      cand.push(k);
+    });
+    const N=12, seg=RONDO.beats/N, used={}; A.blanks=[];
+    for(let q=0;q<N;q++){
+      const want=q%2?0:1;
+      let c=cand.filter(k=>ev[k][0]>=q*seg && ev[k][0]<(q+1)*seg-1);
+      const pref=c.filter(k=>ev[k][4]===want); if(pref.length) c=pref;
+      if(!c.length) continue;
+      // så omväxlande toner som möjligt
+      const least=Math.min(...c.map(k=>used[ev[k][1]]||0));
+      const k=pick(c.filter(k=>(used[ev[k][1]]||0)===least));
+      used[ev[k][1]]=(used[ev[k][1]]||0)+1; A.blanks.push(k);
+    }
+    A.blankSet=new Map(A.blanks.map(k=>[k,{done:false,auto:false}]));
+    buildPiano(dia(parse("C3")), dia(parse("B5")), "arcPiano");
+    this.layout();
+    this.say("Jag skriver ett rondo… men ibland fastnar jag. Hjälp mig!");
+  },
+  say(t){ A.msay=t; A.msayT=3.6; },
+  layout(){
+    const W=A.W,H=A.H;
+    A.mozH=Math.min(130,Math.max(80,H*.22));
+    A.SP=Math.max(9,Math.min(18,(H-A.mozH-14)/17));
+    const SP=A.SP, top=A.mozH+Math.max(0,(H-A.mozH-16*SP)/2);
+    A.tTop=top+3*SP; A.tBot=A.tTop+4*SP; A.bTop=A.tBot+3*SP; A.bBot=A.bTop+4*SP;
+    A.ppb=Math.max(110, SP*8.5); A.playX=Math.max(70, W*.3);
+  },
+  progress(){ return Math.max(0,A.mt)/RONDO.beats; },
+  ny(e){ const d=e[2]; return e[4]===1 ? A.tBot-(d-30)*A.SP/2 : A.bBot-(d-18)*A.SP/2; },
+  nextBlank(){ for(const k of A.blanks){ if(!A.blankSet.get(k).done) return k; } return -1; },
+  pause(k){
+    A.paused=true; A.tries=0; A.mood="think"; A.moodT=0;
+    const e=RONDO.ev[k], d=e[2];
+    A.items=[{clef:e[4]?"treble":"bass", note:fromDia(d), m:e[1], live:true, x:A.playX, y:this.ny(e), urg:0, k}];
+    this.say(pick(["Hmm… vilken not kommer nu? 🤔","Åh nej, jag har glömt den här noten!","Vilken not ska det vara här?","Kan du hjälpa mig med den här?","Mein Gott… vad var det nu? 🤔"]));
+  },
+  resume(auto){
+    const it=A.items[0]; if(!it) return;
+    const b=A.blankSet.get(it.k); b.done=true; b.auto=!!auto;
+    if(auto) playMidi(it.m);
+    A.items=[]; A.paused=false; A.mood=auto?"frustrated":"happy"; A.moodT=auto?1.9:2.2;
+    // A.ptr står kvar på slagets första not: resten av det som klingar samtidigt spelas direkt (den ifyllda noten hoppas över)
+  },
+  hit(it){
+    this.say(pick(["Ja! Precis så! 🎶","Wunderbar! 🎉","Bravo, maestro!","Perfekt – nu kan jag fortsätta!","Danke! Det var ju den! 🎩"]));
+    this.resume(false);
+  },
+  wrong(){
+    if(!A.paused) return;
+    A.tries++;
+    if(A.tries>=3){
+      const it=A.items[0], nm=SV[it.note.i];
+      arcMiss(it, "");
+      this.say(`Ah, nu kom jag på det – det var ett ${nm}!`);
+      this.resume(true);
+    } else { this.say(`${A.msay} (${3-A.tries} försök kvar)`); A.mood="wrong"; A.moodT=1.3; }     // behåller tipset om oktaven
+  },
+  play(e){
+    const dur=Math.max(.18, e[5]*60/this.BPM*.95);
+    tone(mfreq(e[1]), e[6]?.12:dur, e[4]? .16 : .09, "triangle");
+  },
+  update(dt){
+    A.msayT=Math.max(0,A.msayT-dt);
+    if(A.moodT>0){ A.moodT-=dt; if(A.moodT<=0) A.mood = A.paused ? "think" : "enjoy"; }
+    // noter svävar upp när Mozart njuter
+    if(!A.paused && A.mozX!=null && (A.mood==="enjoy"||A.mood==="happy") && Math.random()<dt*(A.mood==="happy"?6:1.1))
+      burst(A.mozX+(Math.random()-.5)*30, A.mozY-20, 1, ["🎵","🎶"], {up:true,speed:70,g:-40,life:1.3,size:16}, A.parts);
+    if(A.endT>=0){ A.endT+=dt; return; }
+    if(A.paused) return;
+    A.mt+=dt*this.BPM/60;
+    const ev=RONDO.ev, nb=this.nextBlank();
+    while(A.ptr<ev.length && ev[A.ptr][0]<=A.mt){
+      const k=A.ptr, e=ev[k];
+      if(nb>=0 && !A.blankSet.get(nb).done && e[0]>=ev[nb][0]-1e-6){ A.mt=ev[nb][0]; A.ptr=Math.min(A.ptr,nb); this.pause(nb); return; }
+      if(!A.blankSet.has(k)) this.play(e);
+      A.ptr++;
+    }
+    if(Math.floor(A.mt)!==A.lastHud){ A.lastHud=Math.floor(A.mt); arcHud(); }
+    if(A.mt>=RONDO.beats+.5 && !A.over){ A.endT=0; arcEnd(); }
+  },
+  end(){ this.say("Rondo alla turca är klart! Danke schön! 🎩"); A.mood="happy"; A.moodT=99; confetti(70); },
+  // Mozart: peruk med lockrullar, röd rock, spetskrage – och olika miner
+  // enjoy = njuter av musiken, think = funderar, wrong = förfärad, frustrated = frustrerad, happy = lycklig
+  mozart(x,y,u){
+    const t=A.t, m=A.mood, k=Math.min(1,A.moodT||0), beat=Math.max(0,A.mt)*Math.PI;
+    let bob=0, rot=0, shx=0;
+    if(m==="enjoy"){ rot=Math.sin(beat)*.07; bob=-Math.abs(Math.sin(beat))*2; }
+    else if(m==="happy"){ bob=-Math.abs(Math.sin(t*9))*6; rot=Math.sin(t*4.5)*.12; }
+    else if(m==="think"){ rot=-.08+Math.sin(t*1.5)*.03; }
+    else if(m==="wrong"){ bob=-2*k; rot=-.05*k; }
+    else if(m==="frustrated"){ rot=.1+Math.sin(t*2)*.03; }
+    A.mozX=x; A.mozY=y-18*u;
+    ax.save(); ax.translate(x+shx*u, y+bob*u); ax.scale(u,u); ax.rotate(rot);
+    ax.lineCap="round"; ax.lineJoin="round";
+    const skin = m==="frustrated" ? "#fcc9b0" : "#fcd9b6";
+    const C=(cx0,cy0,r,col)=>{ ax.fillStyle=col; ax.beginPath(); ax.arc(cx0,cy0,r,0,Math.PI*2); ax.fill(); };
+    const L=(pts,col,w)=>{ ax.strokeStyle=col; ax.lineWidth=w; ax.beginPath(); ax.moveTo(...pts[0]); pts.slice(1).forEach(q=>ax.lineTo(...q)); ax.stroke(); };
+    const E=(cx0,cy0,rx,ry,col,a0=0,a1=Math.PI*2)=>{ ax.fillStyle=col; ax.beginPath(); ax.ellipse(cx0,cy0,rx,ry,0,a0,a1); ax.fill(); };
+    // rocken
+    ax.fillStyle="#b91c1c"; ax.beginPath(); ax.moveTo(-25,50); ax.quadraticCurveTo(-25,21,-10,17); ax.lineTo(10,17); ax.quadraticCurveTo(25,21,25,50); ax.closePath(); ax.fill();
+    ax.fillStyle="#fde68a"; ax.beginPath(); ax.moveTo(-6,22); ax.lineTo(6,22); ax.lineTo(4,50); ax.lineTo(-4,50); ax.closePath(); ax.fill();
+    ax.fillStyle="#7f1d1d";
+    ax.beginPath(); ax.moveTo(-10,17); ax.lineTo(-4,44); ax.lineTo(-9,44); ax.lineTo(-16,21); ax.closePath(); ax.fill();
+    ax.beginPath(); ax.moveTo(10,17); ax.lineTo(4,44); ax.lineTo(9,44); ax.lineTo(16,21); ax.closePath(); ax.fill();
+    [30,36,42].forEach(by=>C(0,by,1.4,"#b45309"));
+    [[-12,30],[-12,36],[12,30],[12,36]].forEach(([bx,by])=>C(bx,by,1.3,"#facc15"));
+    // spetskrage
+    for(let i=0;i<3;i++){ C(0,18+i*4,4.4-i*.7,"#e5e7eb"); C(0,17.6+i*4,3.9-i*.7,"#fff"); }
+    // peruken bakom
+    C(0,-4,17.5,"#e2e8f0");
+    for(const sd of [-1,1]) for(const ry of [-1,6.5]){
+      E(sd*16,ry,6,3.8,"#f8fafc"); ax.strokeStyle="#cbd5e1"; ax.lineWidth=.9;
+      ax.beginPath(); ax.ellipse(sd*16,ry,6,3.8,0,0,Math.PI*2); ax.stroke();
+      ax.beginPath(); ax.arc(sd*16+sd*2,ry,1.6,0,Math.PI*1.5); ax.stroke();
+    }
+    // ansiktet
+    E(0,1.5,12,14,skin);
+    E(0,-9.5,13.5,7,"#f8fafc",Math.PI,0);
+    ax.strokeStyle="#e2e8f0"; ax.lineWidth=1; ax.beginPath(); ax.arc(-5,-11,3,Math.PI,0); ax.arc(5,-11,3,Math.PI,0); ax.stroke();
+    // kinder
+    ax.globalAlpha = m==="happy"?.75 : m==="enjoy"?.5 : m==="frustrated"?.55 : .3;
+    C(-7.5,5,2.8,"#fb7185"); C(7.5,5,2.8,"#fb7185"); ax.globalAlpha=1;
+    // ögonbryn
+    const br={enjoy:[[-7.5,-6],[-2.5,-7],[2.5,-7],[7.5,-6]], happy:[[-7.5,-8],[-2.5,-9.5],[2.5,-9.5],[7.5,-8]],
+              think:[[-7.5,-9],[-2.5,-8],[2.5,-6],[7.5,-6.5]], wrong:[[-7.5,-7.5],[-2.5,-9],[2.5,-9],[7.5,-7.5]],
+              frustrated:[[-7.5,-6.5],[-2.5,-8],[2.5,-6],[7.5,-6.5]]}[m]||[[-7.5,-6],[-2.5,-7],[2.5,-7],[7.5,-6]];
+    L([br[0],br[1]],"#94a3b8",1.8); L([br[2],br[3]],"#94a3b8",1.8);
+    // ögon
+    const ink="#1e1b4b";
+    if(m==="enjoy"){ for(const sd of [-1,1]){ ax.strokeStyle=ink; ax.lineWidth=1.5; ax.beginPath(); ax.arc(sd*4.5,-2.5,2.6,.15*Math.PI,.85*Math.PI); ax.stroke(); } }
+    else if(m==="happy"){ for(const sd of [-1,1]){ ax.strokeStyle=ink; ax.lineWidth=1.7; ax.beginPath(); ax.arc(sd*4.5,0,2.8,1.15*Math.PI,1.85*Math.PI); ax.stroke(); } }
+    else if(m==="frustrated"){ for(const sd of [-1,1]){ C(sd*4.5,-1.2,2.6,"#fff"); C(sd*4.5,-.6,1.4,ink);
+        ax.fillStyle=skin; ax.beginPath(); ax.rect(sd*4.5-3,-4.4,6,3); ax.fill(); L([[sd*4.5-2.8,-1.5],[sd*4.5+2.8,-1.5]],ink,1.1); } }
+    else {
+      const wide=m==="wrong", r=wide?3.1:2.8, pr=wide?1.3:1.5, lx=m==="think"?1.1:0, ly=m==="think"?-1.3:0;
+      for(const sd of [-1,1]){ C(sd*4.5,-1.5,r,"#fff"); ax.strokeStyle="#cbd5e1"; ax.lineWidth=.6; ax.beginPath(); ax.arc(sd*4.5,-1.5,r,0,Math.PI*2); ax.stroke();
+        C(sd*4.5+lx,-1.5+ly,pr,ink); C(sd*4.5+lx+.5,-2+ly,.45,"#fff"); }
+    }
+    // näsa
+    ax.strokeStyle="#e8a07a"; ax.lineWidth=1.2; ax.beginPath(); ax.arc(.5,3.2,1.6,-.2*Math.PI,.7*Math.PI); ax.stroke();
+    // mun
+    if(m==="happy"){ ax.fillStyle="#9f1239"; ax.beginPath(); ax.moveTo(-5,7); ax.quadraticCurveTo(0,15,5,7); ax.closePath(); ax.fill();
+      E(0,10.4,2.4,1.3,"#fb7185"); }
+    else if(m==="enjoy"){ ax.strokeStyle="#9f1239"; ax.lineWidth=1.6; ax.beginPath(); ax.arc(0,5.5,4,.18*Math.PI,.82*Math.PI); ax.stroke(); }
+    else if(m==="think"){ L([[-2,9],[1.5,8.3],[3.5,9]],"#9f1239",1.5); }
+    else if(m==="wrong"){ E(0,9.3,1.9,2.4,"#9f1239"); }                       // litet "oj!"
+    else if(m==="frustrated"){ L([[-4,9.2],[-2,8.2],[0,9.2],[2,8.2],[4,9.2]],"#9f1239",1.4); }   // snett, lite surt
+    // armar: axel → armbåge → hand
+    const arm=(sh,el,hd)=>{ L([sh,el,hd],"#b91c1c",7); C(hd[0],hd[1],3.6,"#fff"); const dx=hd[0]-el[0], dy=hd[1]-el[1], d=Math.hypot(dx,dy)||1; C(hd[0]+dx/d*3,hd[1]+dy/d*3,3.1,skin); return [hd[0]+dx/d*3,hd[1]+dy/d*3]; };
+    const quill=(h,a)=>{ ax.save(); ax.translate(h[0],h[1]); ax.rotate(a);
+      E(0,-12,3.8,10.5,"#dbeafe"); ax.strokeStyle="#93c5fd"; ax.lineWidth=.8; ax.beginPath(); ax.ellipse(0,-12,3.8,10.5,0,0,Math.PI*2); ax.stroke();
+      ax.strokeStyle="#64748b"; ax.beginPath(); ax.moveTo(0,-22); ax.lineTo(0,2); ax.stroke();
+      for(let q=-19;q<-4;q+=3){ ax.beginPath(); ax.moveTo(0,q); ax.lineTo(-3,q-2); ax.moveTo(0,q); ax.lineTo(3,q-2); ax.stroke(); }
+      L([[0,1],[0,4]],"#111827",1.2); ax.restore(); };
+    if(m==="enjoy"){ arm([-19,24],[-24,36],[-16,42]); const w=Math.sin(beat*2); const h=arm([19,24],[29,27+w*2],[33,17+w*4]); quill(h,.75+w*.2); }
+    else if(m==="happy"){ arm([-19,24],[-14,34],[-5,30]); const w=Math.sin(t*9); const h=arm([19,24],[30,22],[34,10+w*4]); quill(h,.6+w*.3); }
+    else if(m==="think"){ arm([-19,24],[-24,36],[-16,42]); const h=arm([19,24],[17,31],[7,15]); quill(h,1.5); }
+    else if(m==="wrong"){ arm([-19,24],[-24,36],[-16,42]); const h=arm([19,24],[29,30],[33,22]); quill(h,1.1); }
+    else if(m==="frustrated"){ arm([-19,24],[-25,34],[-18,42]); arm([19,24],[27,12],[17,-6]); }    // kliar sig i peruken
+    ax.restore();
+    if(m==="wrong") emo("❗", x+20*u, y-24*u, 13*u);
+    if(m==="think") emo("💭", x-22*u, y-24*u, 18*u);
+  },
+  draw(){
+    const W=A.W,H=A.H,SP=A.SP, ev=RONDO.ev;
+    ax.fillStyle="#fffbeb"; ax.fillRect(-20,-20,W+40,H+40);
+    // pergament-ränder
+    ax.fillStyle="rgba(217,119,6,.06)"; for(let y=0;y<H;y+=6) ax.fillRect(0,y,W,2);
+    // notlinjer
+    ax.strokeStyle="#1e1b4b"; ax.lineWidth=1.3;
+    for(const b of [A.tBot,A.bBot]) for(let k=0;k<5;k++){ ax.beginPath(); ax.moveTo(8,b-k*SP); ax.lineTo(W-8,b-k*SP); ax.stroke(); }
+    // taktstreck och noter i fönstret
+    const x0=t=>A.playX+(t-A.mt)*A.ppb, tMin=A.mt-(A.playX+20)/A.ppb, tMax=A.mt+(W-A.playX+20)/A.ppb;
+    ax.lineWidth=1.4;
+    for(const bt of RONDO.bars){ if(bt<tMin||bt>tMax) continue; const x=x0(bt)-SP*.9; ax.beginPath(); ax.moveTo(x,A.tTop); ax.lineTo(x,A.bBot); ax.stroke(); }
+    for(const mk of RONDO.marks.slice(1)){ if(mk<tMin||mk>tMax) continue; const x=x0(mk)-SP*.9;
+      ax.lineWidth=4; ax.beginPath(); ax.moveTo(x+4,A.tTop); ax.lineTo(x+4,A.bBot); ax.stroke(); ax.lineWidth=1.4;
+      ax.fillStyle="#1e1b4b"; for(const y of [A.tBot-1.5*SP,A.tBot-2.5*SP,A.bBot-1.5*SP,A.bBot-2.5*SP]){ ax.beginPath(); ax.arc(x-4,y,2.4,0,Math.PI*2); ax.fill(); } }
+    const rx=SP*.62, ry=SP*.46;
+    ev.forEach((e,k)=>{
+      const [t,m,d,acc,h,dur,g]=e; if(g || t<tMin || t>tMax) return;
+      const x=x0(t), y=this.ny(e), bot=h?A.tBot:A.bBot, off=(bot-y)/(SP/2);
+      const blank=A.blankSet.get(k);
+      // hjälplinjer
+      ax.strokeStyle="#1e1b4b"; ax.lineWidth=1.3;
+      for(let q=-2;q>=off-.01;q-=2){ const ly=bot-q*SP/2; ax.beginPath(); ax.moveTo(x-rx*1.7,ly); ax.lineTo(x+rx*1.7,ly); ax.stroke(); }
+      for(let q=10;q<=off+.01;q+=2){ const ly=bot-q*SP/2; ax.beginPath(); ax.moveTo(x-rx*1.7,ly); ax.lineTo(x+rx*1.7,ly); ax.stroke(); }
+      if(blank && !blank.done){
+        const pulse = A.items[0] && A.items[0].k===k ? 1+.12*Math.sin(A.t*8) : 1;
+        ax.fillStyle = A.items[0] && A.items[0].k===k ? "#facc15" : "#fde68a";
+        ax.beginPath(); ax.arc(x,y,SP*.95*pulse,0,Math.PI*2); ax.fill();
+        ax.fillStyle="#92400e"; ax.font=`800 ${Math.round(SP*1.3)}px 'Baloo 2', system-ui`; ax.textAlign="center"; ax.textBaseline="middle";
+        ax.fillText("?",x,y+1);
+        return;
+      }
+      const sounding = t<=A.mt && A.mt<t+Math.max(dur,.25);
+      const col = blank ? (blank.auto?"#dc2626":"#16a34a") : sounding ? "#ea580c" : t<A.mt ? "#94a3b8" : "#1e1b4b";
+      ax.fillStyle=col; ax.strokeStyle=col;
+      ax.beginPath(); ax.ellipse(x,y,rx,ry,-.35,0,Math.PI*2); ax.fill();
+      const up = off<4; ax.lineWidth=1.4; ax.beginPath();
+      if(up){ ax.moveTo(x+rx*.92,y); ax.lineTo(x+rx*.92,y-3.2*SP); } else { ax.moveTo(x-rx*.92,y); ax.lineTo(x-rx*.92,y+3.2*SP); }
+      ax.stroke();
+      if(acc){ ax.font=`${Math.round(SP*1.5)}px "Noto Music","Segoe UI Symbol"`; ax.textAlign="center"; ax.textBaseline="middle";
+        ax.fillText(acc===1?"♯":acc===-1?"♭":"♮", x-rx*2.6, y); }
+    });
+    // klavar längst till vänster (noterna glider in bakom)
+    ax.fillStyle="#fffbeb"; ax.fillRect(0,A.tTop-3*SP,Math.max(46,SP*3.4),A.bBot-A.tTop+6*SP);
+    ax.strokeStyle="#1e1b4b"; ax.lineWidth=1.3;
+    for(const b of [A.tBot,A.bBot]) for(let k=0;k<5;k++){ ax.beginPath(); ax.moveTo(8,b-k*SP); ax.lineTo(Math.max(46,SP*3.4),b-k*SP); ax.stroke(); }
+    ax.lineWidth=2; ax.beginPath(); ax.moveTo(8,A.tTop); ax.lineTo(8,A.bBot); ax.stroke();
+    ax.fillStyle="#1e1b4b"; ax.textAlign="left"; ax.textBaseline="alphabetic";
+    ax.font=`${SP*4.6}px "Noto Music","Segoe UI Symbol"`; ax.fillText("𝄞",12,A.tBot-SP);
+    ax.font=`${SP*4.2}px "Noto Music","Segoe UI Symbol"`; ax.fillText("𝄢",12,A.bBot-SP);
+    // spelhuvudet
+    ax.strokeStyle="rgba(234,88,12,.35)"; ax.lineWidth=3; ax.beginPath(); ax.moveTo(A.playX,A.tTop-2.5*SP); ax.lineTo(A.playX,A.bBot+2*SP); ax.stroke();
+    // försök kvar
+    if(A.paused){ for(let k=0;k<3;k++){ ax.fillStyle = k<3-A.tries ? "#22c55e" : "rgba(0,0,0,.2)";
+      ax.beginPath(); ax.arc(A.playX-11+k*11, A.bBot+2.6*SP, 4.5, 0, Math.PI*2); ax.fill(); } }
+    // Mozart och hans pratbubbla
+    const u=Math.min(1.6,A.mozH/82);
+    this.mozart(38*u, 36*u, u);
+    if(A.msay){
+      const bx=92*u, by=8, bw=W-bx-10;
+      ax.font=`700 ${Math.round(Math.max(13,15*u))}px 'Baloo 2', system-ui`;
+      const words=A.msay.split(" "), lines=[]; let cur="";
+      for(const w of words){ const tst=cur?cur+" "+w:w; if(ax.measureText(tst).width>bw-20 && cur){ lines.push(cur); cur=w; } else cur=tst; }
+      if(cur) lines.push(cur);
+      const lh=Math.max(15,17*u), bh=lines.length*lh+14;
+      ax.globalAlpha=Math.min(1,A.msayT*2+(A.paused?1:0));
+      ax.fillStyle="#fff"; ax.strokeStyle="#c4b5fd"; ax.lineWidth=2;
+      ax.beginPath(); ax.roundRect ? ax.roundRect(bx,by,bw,bh,12) : ax.rect(bx,by,bw,bh); ax.fill(); ax.stroke();
+      ax.beginPath(); ax.moveTo(bx,by+16); ax.lineTo(bx-9,by+22); ax.lineTo(bx,by+26); ax.fill();
+      ax.fillStyle="#1e1b4b"; ax.textAlign="left"; ax.textBaseline="top";
+      lines.forEach((l,i)=>ax.fillText(l,bx+10,by+7+i*lh));
+      ax.globalAlpha=1;
+    }
+  }
+},
 /* ---- Motocrosshoppet: spela alla noter så lyckas tricket ---- */
 moto:{
   TRICKS:[
