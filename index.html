@@ -278,6 +278,7 @@ h2{margin:0 0 8px;font-weight:800}
     <button class="btn small ghost" id="arcQuit">✖</button>
     <div class="progress"><div id="arcBar"></div></div>
     <div class="streak" id="arcStreak">&nbsp;</div>
+    <div class="pill" id="arcCatch" style="display:none">🦝 0/3</div>
     <div class="pill">🏆 <span id="arcScore">0</span></div>
   </div>
   <div class="card arena arcArena">
@@ -356,9 +357,7 @@ const WORLDS = [
     {id:"b4", name:"Hjälplinjerna", desc:"Ännu längre upp och ner", clef:"bass", lo:"E2", hi:"E4"},
     {id:"b5", name:"Tidsjakten ⏱️", desc:"Alla F-klavsnoter – hinner du innan tiden tar slut?", clef:"bass", lo:"E2", hi:"E4", time:6, count:15},
     {id:"b6", name:"Trollet Brumm 🧌", desc:"Trollet har snott basnoterna – fånga tillbaka dem!", clef:"bass", lo:"E2", hi:"E4", boss:"brumm"},
-    {id:"b7", name:"Råttjakten 🐭", desc:"Fånga notmössen innan de gömmer sig!", clef:"bass", lo:"E2", hi:"E4", arcade:"mice"},
-    {id:"b8", name:"Rymdlasern 👾", desc:"Skjut ner rymdisarna med notlasern!", clef:"bass", lo:"E2", hi:"E4", arcade:"space"},
-    {id:"b9", name:"Polisjakten 🚓", desc:"Väj genom trafiken och fånga Trollet Brumm!", clef:"bass", lo:"E2", hi:"E4", arcade:"police", thief:"brumm"},
+    {id:"b7", name:"Labyrinten 🌿", desc:"Hjälp ugglan ut – Tjuv-Tore jagar!", clef:"bass", lo:"E2", hi:"E4", arcade:"maze", thief:"tore"},
   ]},
   {key:"mix", name:"🏆 Mästarprovet", color:"var(--mix)", levels:[
     {id:"m1", name:"Båda händerna", desc:"G-klav och F-klav blandat!", clef:"mix", parts:[["treble","C4","C5"],["bass","C3","C4"]]},
@@ -1100,6 +1099,8 @@ const ARCADES = {
     story:"Notmössen har flyttat in i köket! De gömmer sig i kakburkar, kastruller, lådor och mushål och tittar fram med en not var. Spela rätt not på pianot så fångar du musen innan den hinner gömma sig igen."},
   space:{title:"Rymdlasern 👾", face:"👾", go:"Ladda lasern! ⚡", win:"Rymdisarna flydde hem till sin planet! 🚀",
     story:"Elaka rymdisar kommer med stulna noter! Ugglans notlaserkanon skjuter när du spelar rätt not på pianot. Skjut ner dem innan de når basen!"},
+  maze:{title:"Labyrinten 🌿", face:"🦉", go:"Spring! 🏃", win:"Ugglan hittade ut! Tore blev kvar i labyrinten 🎉",
+    story:"jagar ugglan genom häcklabyrinten! Under varje pil står en not – spela noten åt det håll ugglan ska springa. Hitta ut till dörren 🚪 – blir ugglan tagen tre gånger vinner Tore!", lose:"Tjuv-Tore fångade ugglan tre gånger… Spring snabbare nästa gång – du klarar det! 💪"},
   police:{title:"Polisjakten 🚓", face:"🚓", go:"Slå på sirenen! 🚨", win:"Tjuven är fast! 🚨🎉",
     story:"har rymt i en bil! Du kör polisbilen. När en bil är i vägen dyker en not upp i filen bredvid – spela den så styr du dit. Du har tre försök på varje not! Kör ikapp tjuven!"},
 };
@@ -1119,6 +1120,7 @@ function startArcade(lv){
   $("arcStory").textContent = lv.thief ? `${BOSSES[lv.thief].name} ${def.story}` : def.story;
   $("arcGo").textContent = def.go;
   $("arcIntro").style.display="";
+  $("arcCatch").style.display = lv.arcade==="maze" ? "" : "none";
   show("arcade"); resizeArc(); MODES[A.mode].setup();
   drawArc();
   document.fonts && document.fonts.load(`40px "Noto Music"`).then(()=>A && drawArc());
@@ -1163,12 +1165,19 @@ function arcPick(){
   return {clef:c.clef, note:c.note, m:midi(c.note), live:true, x:0, y:0, urg:0, st:0};
 }
 function arcHud(){
-  $("arcBar").style.width=(A.resolved/A.goal*100)+"%";
+  const pr=MODES[A.mode].progress ? MODES[A.mode].progress() : A.resolved/A.goal;
+  $("arcBar").style.width=(Math.max(0,Math.min(1,pr))*100)+"%";
   $("arcScore").textContent=A.score;
   const st=$("arcStreak");
   st.textContent = A.streak>=2 ? `🔥 ${A.streak} i rad` : " ";
   st.classList.remove("hot"); void st.offsetWidth; if(A.streak>=2) st.classList.add("hot");
+  if(A.mode==="maze"){
+    const c=$("arcCatch"), n=Math.min(MAZE_CATCHES,A.missed);
+    c.textContent=`${(A.thief||BOSSES.tore).emoji} ${n}/${MAZE_CATCHES}`;
+    c.style.background = n>=MAZE_CATCHES-1 ? "#fecaca" : n>0 ? "#fef08a" : "";
+  }
 }
+const MAZE_CATCHES = 3;   // så många gånger får Tore ta ugglan
 let arcSayT=null;
 function arcSay(t){ const e=$("arcSays"); e.textContent=t; e.classList.add("show"); clearTimeout(arcSayT); arcSayT=setTimeout(()=>e.classList.remove("show"),2000); }
 function arcAnswer(m){
@@ -1205,23 +1214,23 @@ function arcMiss(it, txt){
   const k=keyEls[it.m]; if(k){ k.classList.add("glow"); setTimeout(()=>k.classList.remove("glow"),1300); }
   if(A.resolved>=A.goal) arcEnd();
 }
-function arcEnd(){
+function arcEnd(lost=false){
   if(A.over) return;
   A.over=true;
-  MODES[A.mode].end();
+  MODES[A.mode].end(lost);
   const a=A;
   setTimeout(()=>{
     if(A!==a) return;
     a.running=false;
-    const m=a.mistakes, stars = m<=1?3 : m<=4?2 : 1;
+    const m=a.mistakes, stars = lost ? 0 : m<=1?3 : m<=4?2 : 1;
     showResult({lv:a.lv, stars, score:a.score,
-      face: stars===3 ? "🤩" : a.lv.thief && a.mode==="police" ? "🚓" : a.def.face,
-      title: stars>=2 ? a.def.win : `${a.def.win} Spela igen för fler stjärnor 💪`,
+      face: lost ? (a.thief||BOSSES.tore).emoji : stars===3 ? "🤩" : a.lv.thief && a.mode==="police" ? "🚓" : a.def.face,
+      title: lost ? a.def.lose : stars>=2 ? a.def.win : `${a.def.win} Spela igen för fler stjärnor 💪`,
       stats:`
         <div class="stat"><small>Poäng</small>🏆 ${a.score}</div>
-        <div class="stat"><small>Rätt</small>🎯 ${a.caught} av ${a.goal}</div>
+        <div class="stat"><small>Rätt</small>🎯 ${a.mode==="maze" ? a.caught : `${a.caught} av ${a.goal}`}</div>
         <div class="stat"><small>Längsta svit</small>🔥 ${a.best}</div>
-        <div class="stat"><small>Hann undan</small>${a.missed}</div>
+        <div class="stat"><small>${a.mode==="maze"?"Fångad av Tore":"Hann undan"}</small>${a.missed}</div>
         <div class="stat"><small>Felklick</small>${a.wrong===0?"0 😎":a.wrong}</div>`});
     A=null;
   }, 2200);
@@ -1254,6 +1263,172 @@ function timeBar(x,y,w,f){
 }
 
 const MODES = {
+/* ---- Labyrinten: led ugglan ut, Tjuv-Tore jagar ---- */
+maze:{
+  ORDER:[3,0,2,1],                       // panelens ordning: vänster, upp, ner, höger
+  ARROW:["⬆️","➡️","⬇️","⬅️"],
+  setup(){
+    A.dark=false; A.goal=999; A.mz=null;
+    A.thief=BOSSES[A.lv.thief]||BOSSES.tore;
+    this.layout();
+    arcSay(`${A.thief.emoji} Hihi, snart kommer jag!`);
+  },
+  layout(){
+    const W=A.W, H=A.H;
+    A.cs=Math.min(.95,(W/4-12)/100, H/520);
+    A.panelH=86*A.cs+40;
+    const mh=H-A.panelH-6;
+    if(!A.mz){
+      const cols=Math.max(6,Math.min(13,Math.round(W/50)));
+      const rows=Math.max(5,Math.min(11,Math.floor(mh/((W-16)/cols))));
+      this.build(cols,rows);
+    }
+    A.cell=Math.min((W-16)/A.mz.cols,(mh-8)/A.mz.rows);
+    A.ox=(W-A.cell*A.mz.cols)/2; A.oy=4+(mh-A.cell*A.mz.rows)/2;
+    this.place();
+  },
+  build(cols,rows){
+    const N=cols*rows, D=[[0,-1],[1,0],[0,1],[-1,0]];
+    const open=Array.from({length:N},()=>[false,false,false,false]);
+    const seen=new Array(N).fill(false), st=[0]; seen[0]=true;
+    while(st.length){
+      const c=st[st.length-1], x=c%cols, y=(c/cols|0);
+      const opts=[0,1,2,3].filter(d=>{ const nx=x+D[d][0], ny=y+D[d][1]; return nx>=0&&ny>=0&&nx<cols&&ny<rows&&!seen[ny*cols+nx]; });
+      if(!opts.length){ st.pop(); continue; }
+      const d=pick(opts), n=(y+D[d][1])*cols+x+D[d][0];
+      open[c][d]=true; open[n][(d+2)%4]=true; seen[n]=true; st.push(n);
+    }
+    // några extra öppningar så att man kan smita runt Tore
+    for(let k=0;k<Math.round(N*.08);k++){
+      const c=Math.floor(Math.random()*N), x=c%cols, y=c/cols|0, d=pick([1,2]), nx=x+D[d][0], ny=y+D[d][1];
+      if(nx<cols && ny<rows){ open[c][d]=true; open[ny*cols+nx][(d+2)%4]=true; }
+    }
+    A.mz={cols,rows,open,D,exit:N-1};
+    A.owl={c:0,x:0,y:0,path:[],trail:new Set([0]),dizzy:0,hop:0};
+    A.tore={c:0,next:null,t:0,wait:6,x:0,y:0};
+    A.startDist=this.bfs(0).dist[N-1];
+    this.decide();
+  },
+  bfs(a){
+    const {cols,rows,open,D}=A.mz, N=cols*rows, dist=new Array(N).fill(-1), prev=new Array(N).fill(-1), q=[a]; dist[a]=0;
+    for(let h=0;h<q.length;h++){ const c=q[h], x=c%cols, y=c/cols|0;
+      for(let d=0;d<4;d++) if(open[c][d]){ const n=(y+D[d][1])*cols+x+D[d][0]; if(dist[n]<0){ dist[n]=dist[c]+1; prev[n]=c; q.push(n); } } }
+    return {dist,prev};
+  },
+  nb(c,d){ const {cols,D}=A.mz; return c+D[d][1]*cols+D[d][0]; },
+  dirs(c){ return [0,1,2,3].filter(d=>A.mz.open[c][d]); },
+  progress(){ return A.mz ? 1-this.bfs(A.owl.c).dist[A.mz.exit]/A.startDist : 0; },
+  // ugglan står i en korsning: en not för varje väg
+  decide(){
+    A.items=[];
+    for(const d of this.dirs(A.owl.c)){ const it=arcPick(); it.dir=d; A.items.push(it); }
+    this.place();
+  },
+  place(){
+    const sw=A.W/4;
+    for(const it of A.items){ const k=this.ORDER.indexOf(it.dir); it.x=(k+.5)*sw; it.y=A.H-A.panelH+30+43*A.cs; }
+  },
+  hit(it){
+    // spring längs gången tills nästa korsning, återvändsgränd eller utgången
+    const path=[]; let cur=A.owl.c, d=it.dir;
+    for(let n=0;n<200;n++){
+      cur=this.nb(cur,d); path.push(cur);
+      if(cur===A.mz.exit) break;
+      const ds=this.dirs(cur); if(ds.length!==2) break;
+      const nd=ds.find(x=>x!==(d+2)%4);
+      if(nd!==d) break;                      // stanna i varje sväng – då blir det fler noter att läsa
+    }
+    A.owl.path=path; A.items=[];
+    tone(880,.08,.05,"sine"); tone(1100,.08,.05,"sine",.06);
+  },
+  update(dt){
+    const o=A.owl, T=A.tore, mz=A.mz, cols=mz.cols;
+    o.dizzy=Math.max(0,o.dizzy-dt); o.hop=Math.max(0,o.hop-dt);
+    // ugglan springer
+    if(o.path.length){
+      const tc=o.path[0], tx=tc%cols, ty=tc/cols|0, sp=6*dt;
+      const dx=tx-o.x, dy=ty-o.y, L=Math.hypot(dx,dy);
+      if(L<=sp){ o.x=tx; o.y=ty; o.c=o.path.shift(); o.trail.add(o.c);
+        arcHud();
+        if(o.c===mz.exit && !A.over){ arcEnd(); }
+        else if(!o.path.length) this.decide();
+      } else { o.x+=dx/L*sp; o.y+=dy/L*sp; }
+    }
+    // Tore jagar
+    if(!A.over){
+      if(T.wait>0) T.wait-=dt;
+      else {
+        if(T.next==null){ const pv=this.bfs(o.c).prev[T.c]; T.next = pv>=0 ? pv : null; T.t=0; }
+        if(T.next!=null){
+          T.t+=dt/1.9;                         // Tore: ett steg per 1,9 s
+          if(T.t>=1){ T.c=T.next; T.next=null; T.t=0; }
+        }
+      }
+    }
+    const a={x:T.c%cols,y:T.c/cols|0}, b=T.next!=null?{x:T.next%cols,y:T.next/cols|0}:a;
+    T.x=a.x+(b.x-a.x)*T.t; T.y=a.y+(b.y-a.y)*T.t;
+    // fångad?
+    if(!A.over && T.wait<=0 && Math.hypot(T.x-o.x,T.y-o.y)<.55){
+      A.missed++; A.mistakes++; A.streak=0; arcHud();
+      o.dizzy=1.2; A.shake=.4; sndBad();
+      burst(this.px(o.x), this.py(o.y), 8, ["🪶","💫"], {up:true,speed:180,g:200,life:1}, A.parts);
+      if(A.missed>=MAZE_CATCHES){ arcEnd(true); return; }
+      const left=MAZE_CATCHES-A.missed;
+      arcSay(`${A.thief.emoji} ${pick(["Hihi, fångad!","Där är du ju!","Haha, tagen!"])} ${left===1?"En gång till så vinner jag!":`(${A.missed} av ${MAZE_CATCHES})`}`);
+      T.c=0; T.next=null; T.t=0; T.wait=4;                      // Tore springer tillbaka till start
+    }
+  },
+  px(x){ return A.ox+(x+.5)*A.cell; },
+  py(y){ return A.oy+(y+.5)*A.cell; },
+  end(lost){
+    if(lost){ arcSay(`${A.thief.emoji} Hö hö! Tre gånger – jag vann!`); A.owl.dizzy=2; A.tore.wait=99; A.items=[]; }
+    else { arcSay("Ute! Tore hittar inte ut! 🎉"); A.owl.hop=1; confetti(50); }
+  },
+  draw(){
+    const W=A.W,H=A.H,mz=A.mz,cell=A.cell,cols=mz.cols,s=A.cs;
+    ax.fillStyle="#86efac"; ax.fillRect(-20,-20,W+40,H+40);
+    ax.fillStyle="#dcfce7"; ax.fillRect(A.ox,A.oy,cell*cols,cell*mz.rows);
+    // spår där ugglan har sprungit
+    ax.fillStyle="rgba(250,204,21,.55)";
+    for(const c of A.owl.trail){ ax.beginPath(); ax.arc(this.px(c%cols),this.py(c/cols|0),cell*.12,0,Math.PI*2); ax.fill(); }
+    // utgång
+    emo("🚪", this.px(mz.exit%cols), this.py(mz.exit/cols|0), cell*.72);
+    // häckar
+    const walls=()=>{ ax.beginPath();
+      for(let c=0;c<cols*mz.rows;c++){ const x=A.ox+(c%cols)*cell, y=A.oy+(c/cols|0)*cell, o=mz.open[c];
+        if(!o[0]){ ax.moveTo(x,y); ax.lineTo(x+cell,y); }
+        if(!o[3]){ ax.moveTo(x,y); ax.lineTo(x,y+cell); }
+        if(!o[1] && c%cols===cols-1){ ax.moveTo(x+cell,y); ax.lineTo(x+cell,y+cell); }
+        if(!o[2] && (c/cols|0)===mz.rows-1){ ax.moveTo(x,y+cell); ax.lineTo(x+cell,y+cell); }
+      } ax.stroke(); };
+    ax.lineCap="round";
+    ax.strokeStyle="#14532d"; ax.lineWidth=Math.max(6,cell*.24); walls();
+    ax.strokeStyle="#22c55e"; ax.lineWidth=Math.max(3,cell*.12); walls();
+    // pilar vid ugglan som visar vägarna
+    const o=A.owl;
+    for(const it of A.items){ if(!it.live) continue; const D=mz.D[it.dir];
+      emo(this.ARROW[it.dir], this.px(o.x+D[0]*.62), this.py(o.y+D[1]*.62), cell*.36); }
+    // Tore och ugglan
+    const T=A.tore;
+    if(T.wait>0 && !A.over) emo(T.wait>1?"💤":"❗", this.px(T.x)+cell*.3, this.py(T.y)-cell*.4, cell*.3);
+    emo(A.thief.emoji, this.px(T.x), this.py(T.y)+Math.sin(A.t*12)*2, cell*.78, Math.sin(A.t*10)*.12);
+    const hop=o.hop>0?Math.abs(Math.sin(A.t*10))*cell*.3:0, sh=o.dizzy>0?Math.sin(A.t*50)*4:0;
+    emo("🦉", this.px(o.x)+sh, this.py(o.y)-hop-(o.path.length?Math.abs(Math.sin(A.t*18))*3:0), cell*.8);
+    if(o.dizzy>0) emo("💫", this.px(o.x), this.py(o.y)-cell*.45, cell*.3, A.t*8);
+    // notpanel
+    const top=H-A.panelH;
+    ax.fillStyle="#a16207"; ax.fillRect(-20,top,W+40,A.panelH+20);
+    ax.fillStyle="#854d0e"; ax.fillRect(-20,top,W+40,4);
+    const sw=W/4;
+    this.ORDER.forEach((d,k)=>{
+      const it=A.items.find(i=>i.live && i.dir===d), x=(k+.5)*sw;
+      emo(this.ARROW[d], x, top+16, 22, 0,1,1, it?1:.3);
+      if(it) card(it, x, it.y, s);
+      else { ax.fillStyle="rgba(0,0,0,.15)"; ax.beginPath(); ax.roundRect ? ax.roundRect(x-46*s,top+30,92*s,86*s,12) : ax.rect(x-46*s,top+30,92*s,86*s); ax.fill();
+             if(!o.path.length) emo("🌿", x, top+30+43*s, 30*s, 0,1,1,.6); }
+    });
+  }
+},
 /* ---- Råttjakten: möss tittar upp ur mushål ---- */
 mice:{
   setup(){ A.dark=false; A.lastHole=-1; this.layout(); },
