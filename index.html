@@ -358,6 +358,7 @@ const WORLDS = [
     {id:"b5", name:"Tidsjakten ⏱️", desc:"Alla F-klavsnoter – hinner du innan tiden tar slut?", clef:"bass", lo:"E2", hi:"E4", time:6, count:15},
     {id:"b6", name:"Trollet Brumm 🧌", desc:"Trollet har snott basnoterna – fånga tillbaka dem!", clef:"bass", lo:"E2", hi:"E4", boss:"brumm"},
     {id:"b7", name:"Labyrinten 🌿", desc:"Hjälp ugglan ut – Tjuv-Tore jagar!", clef:"bass", lo:"E2", hi:"E4", arcade:"maze", thief:"tore"},
+    {id:"b8", name:"Motocrosshoppet 🏍️", desc:"Spela alla noter så klarar föraren tricket!", clef:"bass", lo:"E2", hi:"E4", arcade:"moto"},
   ]},
   {key:"mix", name:"🏆 Mästarprovet", color:"var(--mix)", levels:[
     {id:"m1", name:"Båda händerna", desc:"G-klav och F-klav blandat!", clef:"mix", parts:[["treble","C4","C5"],["bass","C3","C4"]]},
@@ -1099,7 +1100,9 @@ const ARCADES = {
     story:"Notmössen har flyttat in i köket! De gömmer sig i kakburkar, kastruller, lådor och mushål och tittar fram med en not var. Spela rätt not på pianot så fångar du musen innan den hinner gömma sig igen."},
   space:{title:"Rymdlasern 👾", face:"👾", go:"Ladda lasern! ⚡", win:"Rymdisarna flydde hem till sin planet! 🚀",
     story:"Elaka rymdisar kommer med stulna noter! Ugglans notlaserkanon skjuter när du spelar rätt not på pianot. Skjut ner dem innan de når basen!"},
-  maze:{title:"Labyrinten 🌿", face:"🦉", go:"Spring! 🏃", win:"Ugglan hittade ut! Tore blev kvar i labyrinten 🎉",
+  moto:{title:"Motocrosshoppet 🏍️", face:"🏍️", go:"Gasa! 🏁", win:"Vilken trickshow! Publiken jublar! 🏆", missLabel:"Missade noter",
+    story:"Motocrossföraren ska göra häftiga trick i hoppet! Före varje hopp kommer två eller tre noter. Spela alla innan tiden tar slut – i vilken ordning du vill – så lyckas tricket! Du har tre försök på varje not."},
+  maze:{title:"Labyrinten 🌿", missLabel:"Fångad av Tore", face:"🦉", go:"Spring! 🏃", win:"Ugglan hittade ut! Tore blev kvar i labyrinten 🎉",
     story:"jagar ugglan genom häcklabyrinten! Under varje pil står en not – spela noten åt det håll ugglan ska springa. Hitta ut till dörren 🚪 – blir ugglan tagen tre gånger vinner Tore!", lose:"Tjuv-Tore fångade ugglan tre gånger… Spring snabbare nästa gång – du klarar det! 💪"},
   police:{title:"Polisjakten 🚓", face:"🚓", go:"Slå på sirenen! 🚨", win:"Tjuven är fast! 🚨🎉",
     story:"har rymt i en bil! Du kör polisbilen. När en bil är i vägen dyker en not upp i filen bredvid – spela den så styr du dit. Du har tre försök på varje not! Kör ikapp tjuven!"},
@@ -1119,7 +1122,7 @@ function startArcade(lv){
   $("arcTitle").textContent = def.title;
   $("arcStory").textContent = lv.thief ? `${BOSSES[lv.thief].name} ${def.story}` : def.story;
   $("arcGo").textContent = def.go;
-  $("arcIntro").style.display="";
+  $("arcIntro").style.display=""; $("arcSays").style.top="";
   $("arcCatch").style.display = lv.arcade==="maze" ? "" : "none";
   show("arcade"); resizeArc(); MODES[A.mode].setup();
   drawArc();
@@ -1228,9 +1231,9 @@ function arcEnd(lost=false){
       title: lost ? a.def.lose : stars>=2 ? a.def.win : `${a.def.win} Spela igen för fler stjärnor 💪`,
       stats:`
         <div class="stat"><small>Poäng</small>🏆 ${a.score}</div>
-        <div class="stat"><small>Rätt</small>🎯 ${a.mode==="maze" ? a.caught : `${a.caught} av ${a.goal}`}</div>
+        <div class="stat"><small>Rätt</small>🎯 ${a.goal>=999 ? a.caught : `${a.caught} av ${a.goal}`}</div>
         <div class="stat"><small>Längsta svit</small>🔥 ${a.best}</div>
-        <div class="stat"><small>${a.mode==="maze"?"Fångad av Tore":"Hann undan"}</small>${a.missed}</div>
+        <div class="stat"><small>${a.def.missLabel||"Hann undan"}</small>${a.missed}</div>
         <div class="stat"><small>Felklick</small>${a.wrong===0?"0 😎":a.wrong}</div>`});
     A=null;
   }, 2200);
@@ -1263,6 +1266,267 @@ function timeBar(x,y,w,f){
 }
 
 const MODES = {
+/* ---- Motocrosshoppet: spela alla noter så lyckas tricket ---- */
+moto:{
+  TRICKS:[
+    {name:"Whip", n:2, kind:"whip"},
+    {name:"Nac-Nac", n:2, kind:"pose", pose:"nacnac"},
+    {name:"Heel Clicker", n:2, kind:"pose", pose:"heel"},
+    {name:"Superman", n:2, kind:"pose", pose:"superman"},
+    {name:"Cliffhanger", n:3, kind:"pose", pose:"cliff"},
+    {name:"Lazy Boy", n:3, kind:"pose", pose:"lazy"},
+    {name:"360", n:3, kind:"spin"},
+    {name:"Backflip", n:3, kind:"flip", turns:-1},
+    {name:"Frontflip", n:3, kind:"flip", turns:1},
+    {name:"Bike Flip", n:3, kind:"bikeflip"},
+  ],
+  FINAL:{name:"Double Backflip", n:3, kind:"flip", turns:-2},
+  // förarens leder i förhållande till cykeln (cykeln åker åt höger)
+  POSES:{
+    sit:     {hip:[-8,-29],knee:[8,-22],foot:[0,-10],knee2:[8,-22],foot2:[0,-10],sh:[0,-46],hand:[16,-37],head:[6,-56]},
+    nacnac:  {hip:[-8,-31],knee:[8,-22],foot:[0,-10],knee2:[-18,-44],foot2:[-34,-38],sh:[0,-48],hand:[16,-37],head:[6,-58]},
+    heel:    {hip:[-10,-33],knee:[8,-46],foot:[24,-44],knee2:[6,-48],foot2:[22,-48],sh:[-10,-48],hand:[16,-37],head:[-12,-58]},
+    superman:{hip:[-26,-41],knee:[-40,-41],foot:[-56,-43],knee2:[-40,-45],foot2:[-56,-48],sh:[-2,-41],hand:[16,-37],head:[6,-45]},
+    cliff:   {hip:[-2,-56],knee:[10,-44],foot:[18,-36],knee2:[12,-46],foot2:[20,-38],sh:[-12,-70],hand:[-20,-82],head:[-12,-81]},
+    lazy:    {hip:[-4,-33],knee:[10,-38],foot:[22,-40],knee2:[10,-40],foot2:[22,-42],sh:[-22,-35],hand:[-40,-31],head:[-32,-38]},
+    tumble:  {hip:[-2,-26],knee:[12,-36],foot:[6,-18],knee2:[14,-32],foot2:[10,-14],sh:[-6,-42],hand:[10,-40],head:[-2,-52]},
+  },
+  setup(){
+    A.dark=false; A.goal=999;
+    const two=this.TRICKS.filter(t=>t.n===2).sort(()=>Math.random()-.5).slice(0,3);
+    const three=this.TRICKS.filter(t=>t.n===3).sort(()=>Math.random()-.5).slice(0,4);
+    A.plan=[...two,...three,this.FINAL]; A.round=-1; A.done=0;
+    A.st="enter"; A.stT=0; A.rx=-80; A.ry=0; A.rot=0; A.sx=1; A.bikeRot=0; A.pw=0; A.poseName="sit"; A.ok=true;
+    A.flags=Array.from({length:6},(_,k)=>({x:Math.random(),c:pick(["#ef4444","#3b82f6","#facc15","#22c55e","#a855f7"])}));
+    this.layout();
+    this.nextRound();
+  },
+  layout(){
+    const W=A.W,H=A.H;
+    A.cs=Math.min(1,(W/3-14)/100, H/380);
+    A.cardY=12+43*A.cs; A.cardsBot=A.cardY+43*A.cs+14;
+    $("arcSays").style.top=(A.cardsBot+30)+"px";
+    A.K=Math.max(.8,Math.min(1.5,H/340));
+    A.gy=H-34;
+    A.r1=W*.20; A.r2=W*.40; A.rTop=A.gy-Math.min(.15*H,95);
+    A.l1=W*.66; A.l2=W*.92; A.lTop=A.gy-Math.min(.12*H,78);
+    A.peak=Math.max(A.cardsBot+70*A.K, A.rTop-H*.45);
+    A.startX=Math.max(W*.1, 66*A.K);
+    this.place();
+  },
+  place(){
+    const n=A.items.length, gap=Math.min(A.W/3, 120*A.cs);
+    A.items.forEach((it,k)=>{ it.x=A.W/2+(k-(n-1)/2)*gap; it.y=A.cardY; });
+  },
+  progress(){ return A.done/A.plan.length; },
+  nextRound(){
+    A.round++;
+    if(A.round>=A.plan.length){ arcEnd(); return; }
+    A.trick=A.plan[A.round];
+    A.items=[]; for(let k=0;k<A.trick.n;k++) A.items.push(arcPick());
+    const p=A.round/A.plan.length;
+    A.limit=(A.trick.n*3.4+1.5)*(1-.2*p); A.left=A.limit; A.tries=0; A.forceFail=false;
+    this.place();
+    if(A.round===A.plan.length-1) arcSay(`Sista hoppet: ${A.trick.name}! 🔥`);
+  },
+  hit(it){ A.tries=0; tone(500+Math.random()*200,.06,.04,"sawtooth"); },        // brum! rätt not ger tre nya försök
+  // tre försök per not: tredje felet i rad och tricket misslyckas
+  wrong(){
+    if(A.st!=="wait" && A.st!=="enter") return;
+    A.tries++;
+    if(A.tries>=3) A.forceFail=true;
+    else arcSay($("arcSays").textContent+` (${3-A.tries} försök kvar)`);
+  },
+  launch(ok){
+    A.ok=ok; A.st="ride"; A.stT=0;
+    if(!ok){
+      const miss=arcLive(), nf=A.fx.length;
+      for(const it of miss) arcMiss(it, A.forceFail ? "Tre försök – tricket blev inget 😬" : "Oj! Tiden tog slut – tricket blev inget 😬");
+      A.fx.splice(nf);                                                   // en gemensam text i stället för flera på varandra
+      A.fx.push({x:A.W/2, y:A.cardY, t:0, txt:`Det var ${miss.map(i=>SV[i.note.i]).join(" och ")}`, col:"#dc2626"});
+    }
+    tone(110,.9,.08,"sawtooth"); tone(165,.9,.05,"sawtooth",.3);
+  },
+  update(dt){
+    const W=A.W; A.stT+=dt;
+    if(A.st==="enter"){
+      const k=Math.min(1,A.stT/.7); A.rx=-80+(A.startX+80)*(1-Math.pow(1-k,2)); A.ry=A.gy; A.rot=0; A.sx=1; A.bikeRot=0; A.pw=0;
+      if(k>=1){ A.st="wait"; A.stT=0; }
+    } else if(A.st==="wait"){
+      A.rx=A.startX+Math.sin(A.t*20)*1.2; A.ry=A.gy; A.rot=-.05-Math.abs(Math.sin(A.t*6))*.05;
+      if(Math.random()<dt*8) burst(A.rx-34*A.K, A.ry-10*A.K, 1, ["💨"], {speed:60,g:-20,life:.6,size:14}, A.parts);
+      if(!A.over){
+        if(!arcLive().length) this.launch(true);
+        else if(A.forceFail) this.launch(false);
+        else { A.left-=dt; if(A.left<=0) this.launch(false); }
+      }
+    } else if(A.st==="ride"){
+      const T=.9, k=Math.min(1,A.stT/T), e=k*k;
+      A.rx=A.startX+(A.r2-A.startX)*e;
+      if(A.rx<A.r1){ A.ry=A.gy; A.rot=0; }
+      else { const f=(A.rx-A.r1)/(A.r2-A.r1); A.ry=A.gy+(A.rTop-A.gy)*f; A.rot=Math.atan2(A.rTop-A.gy,A.r2-A.r1); }
+      if(k>=1){ A.st="air"; A.stT=0; burst(A.rx,A.ry,6,["💨"],{speed:120,g:0,life:.5,size:18},A.parts); }
+    } else if(A.st==="air"){
+      const T=1.5, k=Math.min(1,A.stT/T), tr=A.trick;
+      A.rx=A.r2+(A.l1-A.r2)*k;
+      // parabel genom startpunkten, toppen och landningen
+      const y0=A.rTop, y1=A.lTop, ym=A.peak;
+      A.ry=(1-k)*(1-k)*y0+2*(1-k)*k*(2*ym-(y0+y1)/2)+k*k*y1;
+      const base=Math.atan2(A.lTop-A.rTop,A.l1-A.r2)*0+(-.5+k*.8);       // nosen upp vid start, ner vid landning
+      A.rot=base*.6; A.sx=1; A.bikeRot=0; A.pw=0; A.poseName="sit";
+      if(A.ok){
+        const w=Math.sin(Math.PI*Math.min(1,k*1.15));
+        if(tr.kind==="flip") A.rot+=tr.turns*2*Math.PI*(1-Math.cos(Math.PI*k))/2;
+        else if(tr.kind==="whip"){ A.rot+=-1.1*w; A.sx=1-.45*w; }
+        else if(tr.kind==="spin") A.sx=Math.cos(2*Math.PI*k);
+        else if(tr.kind==="bikeflip") A.bikeRot=-2*Math.PI*(1-Math.cos(Math.PI*k))/2;
+        else if(tr.kind==="pose"){ A.poseName=tr.pose; A.pw=w; }
+        if(Math.random()<dt*14) burst(A.rx,A.ry-20*A.K,1,["✨","⭐"],{speed:40,g:30,life:.7,size:16},A.parts);
+      } else A.rot+=Math.sin(A.t*16)*.25;                               // vinglar
+      if(k>=1){
+        A.st="land"; A.stT=0; A.rot=0; A.sx=1; A.bikeRot=0; A.pw=0;
+        if(A.ok){
+          A.score+=30; arcHud(); arcSay(`${A.trick.name}! Snyggt landat! 🤘`);
+          A.fx.push({x:A.l1,y:A.lTop-70,t:0,txt:`${A.trick.name}! +30`,col:"#7c3aed"});
+          burst(A.l1,A.lTop-20,14,["🎉","⭐","✨","👏"],{up:true,speed:260,g:250,life:1.1},A.parts);
+          [0,4,7,12].forEach((st,k)=>tone(mfreq(67+st),.25,.08,"triangle",k*.08));
+        } else {
+          A.st="crash"; A.dust=false; A.shake=.7; sndBad(); tone(90,.5,.12,"sawtooth");
+          burst(A.l1,A.lTop,12,["💥","💨","🔩","⭐"],{speed:220,g:220,life:.9},A.parts);
+          arcSay("KRASCH! 💥 Ingen fara – han reser sig och kör igen!");
+        }
+        A.done++; arcHud();
+      }
+    } else if(A.st==="crash"){
+      const K=A.K, gyAt=x=> x<A.l2 ? A.lTop+(A.gy-A.lTop)*(x-A.l1)/(A.l2-A.l1) : A.gy;
+      // cykeln glider ner och lägger sig på sidan
+      const kb=Math.min(1,A.stT/1.2), eb=1-Math.pow(1-kb,2);
+      A.cbx=A.l1+(W*.9-A.l1)*eb; A.cby=gyAt(A.cbx)+4*K;
+      A.cbr=Math.min(1,A.stT/.35)*1.3+Math.sin(Math.min(1,A.stT/.7)*Math.PI)*.35;
+      if(kb<1 && Math.random()<dt*20) burst(A.cbx,A.cby,1,["💨"],{speed:50,g:-30,life:.5,size:16},A.parts);
+      // föraren flyger av och rullar runt
+      const kr=Math.min(1,A.stT/1.0);
+      A.cpx=A.l1+(W*.80-A.l1)*kr; A.cpy=gyAt(A.cpx)-Math.sin(Math.PI*kr)*80*K; A.cpr=kr*Math.PI*4;
+      if(kr>=1 && !A.dust){ A.dust=true; burst(A.cpx,A.gy,8,["💨"],{speed:120,g:-20,life:.6,size:20},A.parts); }
+      if(A.stT>=2.4 && !A.over){ A.st="enter"; A.stT=0; this.nextRound(); }
+    } else if(A.st==="land"){
+      const T=1.1, k=Math.min(1,A.stT/T);
+      A.rx=A.l1+(W+90-A.l1)*k;
+      if(A.rx<A.l2){ const f=(A.rx-A.l1)/(A.l2-A.l1); A.ry=A.lTop+(A.gy-A.lTop)*f; A.rot=Math.atan2(A.gy-A.lTop,A.l2-A.l1); }
+      else { A.ry=A.gy-Math.abs(Math.sin(A.stT*14))*(A.ok?3:10)*(1-k); A.rot=A.ok?0:Math.sin(A.stT*18)*.15*(1-k); }
+      if(k>=1 && !A.over){ A.st="enter"; A.stT=0; this.nextRound(); }
+    }
+  },
+  end(){ arcSay("Vilken show! Publiken jublar! 🏆"); confetti(60); },
+  // parts: "both", "bike" eller "body"; piv = vridpunkt för kroppen när den rullar
+  rider(x,y,rot,sx,bikeRot,poseName,pw,parts="both",piv=0){
+    const K=A.K, P=this.POSES.sit, Q=this.POSES[poseName]||P;
+    const J=n=>[P[n][0]+(Q[n][0]-P[n][0])*pw, P[n][1]+(Q[n][1]-P[n][1])*pw];
+    ax.save(); ax.translate(x,y-14*K);
+    if(piv){ ax.translate(0,-piv*K); ax.rotate(rot); ax.translate(0,piv*K); } else ax.rotate(rot);
+    ax.scale(sx*K,K);
+    ax.lineCap="round"; ax.lineJoin="round";
+    const L=(pts,col,w)=>{ ax.strokeStyle=col; ax.lineWidth=w; ax.beginPath(); ax.moveTo(...pts[0]); pts.slice(1).forEach(q=>ax.lineTo(...q)); ax.stroke(); };
+    const poly=(pts,col)=>{ ax.fillStyle=col; ax.beginPath(); ax.moveTo(...pts[0]); pts.slice(1).forEach(q=>ax.lineTo(...q)); ax.closePath(); ax.fill(); };
+    if(parts!=="body"){
+      ax.save(); if(bikeRot){ ax.translate(0,-14); ax.rotate(bikeRot); ax.translate(0,14); }
+      const spin=(A.st==="wait"||(A.st==="crash"&&A.stT>1.2)) ? 0 : -A.t*14;
+      const wheel=wx=>{
+        ax.fillStyle="#111827"; ax.beginPath(); ax.arc(wx,0,13,0,Math.PI*2); ax.fill();
+        ax.strokeStyle="#111827"; ax.lineWidth=3; ax.setLineDash([2.6,2.4]); ax.beginPath(); ax.arc(wx,0,14,spin,spin+Math.PI*2); ax.stroke(); ax.setLineDash([]);
+        ax.fillStyle="#cbd5e1"; ax.beginPath(); ax.arc(wx,0,9,0,Math.PI*2); ax.fill();
+        ax.fillStyle="#334155"; ax.beginPath(); ax.arc(wx,0,7.6,0,Math.PI*2); ax.fill();
+        ax.strokeStyle="#94a3b8"; ax.lineWidth=1; ax.beginPath();
+        for(let a=0;a<8;a++){ const t=a*Math.PI/4+spin; ax.moveTo(wx,0); ax.lineTo(wx+Math.cos(t)*7.6,Math.sin(t)*7.6); } ax.stroke();
+        ax.fillStyle="#f97316"; ax.beginPath(); ax.arc(wx,0,2.6,0,Math.PI*2); ax.fill();
+      };
+      wheel(-24); wheel(24);
+      L([[-24,0],[-4,-13]],"#475569",5);                                // svingarm
+      L([[-10,-14],[-5,-29]],"#facc15",3.5);                            // stötdämpare
+      L([[-4,-13],[14,-31]],"#94a3b8",4);                               // ram
+      ax.fillStyle="#64748b"; ax.beginPath(); ax.roundRect ? ax.roundRect(-9,-19,19,14,3) : ax.rect(-9,-19,19,14); ax.fill();   // motor
+      L([[-6,-15],[7,-15]],"#475569",1.5); L([[-6,-11],[7,-11]],"#475569",1.5);
+      L([[9,-9],[2,-21],[-12,-25],[-30,-28]],"#e2e8f0",4);              // avgasrör
+      ax.save(); ax.translate(-32,-28); ax.rotate(-.15); ax.fillStyle="#94a3b8"; ax.fillRect(-7,-3.5,12,7); ax.restore();
+      L([[17,-36],[24,0]],"#fbbf24",4.5); L([[19,-36],[26,-2]],"#d97706",2);   // framgaffel
+      poly([[-14,-28],[-42,-35],[-40,-31],[-14,-24]],"#f97316");          // bakskärm
+      L([[-16,-27],[-38,-32]],"#fff",1.5);
+      poly([[-6,-31],[14,-35],[21,-27],[11,-19],[-4,-21]],"#f97316");    // tank/kåpa
+      L([[-2,-26],[13,-30]],"#fff",2);
+      ax.fillStyle="#1d4ed8"; ax.beginPath(); ax.arc(4,-25,3.6,0,Math.PI*2); ax.fill();
+      L([[-30,-31],[3,-33]],"#111827",5);                                // sadel
+      poly([[14,-21],[37,-24],[35,-19],[16,-17]],"#f97316");             // framskärm
+      poly([[18,-40],[27,-38],[25,-27],[17,-29]],"#fff");                // nummerskylt
+      ax.fillStyle="#dc2626"; ax.font="800 8px 'Baloo 2', system-ui"; ax.textAlign="center"; ax.textBaseline="middle"; ax.fillText("8",21.5,-33);
+      L([[12,-40],[21,-42]],"#111827",3);                                // styre
+      ax.restore();
+    }
+    if(parts!=="bike"){
+      const hip=J("hip"),kn=J("knee"),ft=J("foot"),kn2=J("knee2"),ft2=J("foot2"),sh=J("sh"),hd=J("hand"),he=J("head");
+      const leg=(k,f,dark)=>{ const m=[k[0]+(f[0]-k[0])*.45,k[1]+(f[1]-k[1])*.45];
+        L([hip,k,m],dark?"#cbd5e1":"#f8fafc",7.5); L([m,f],"#111827",8);
+        L([[hip[0]+(k[0]-hip[0])*.3,hip[1]+(k[1]-hip[1])*.3],[k[0]-(k[0]-hip[0])*.2,k[1]-(k[1]-hip[1])*.2]],"#2563eb",2); };
+      leg(kn2,ft2,true);
+      L([sh,hip],"#2563eb",12);                                          // tröja
+      L([[sh[0]+(hip[0]-sh[0])*.25,sh[1]+(hip[1]-sh[1])*.25+1],[sh[0]+(hip[0]-sh[0])*.7,sh[1]+(hip[1]-sh[1])*.7+1]],"#facc15",3);
+      leg(kn,ft,false);
+      const el=[(sh[0]+hd[0])/2,(sh[1]+hd[1])/2+3];
+      L([sh,el,hd],"#2563eb",6);
+      ax.fillStyle="#111827"; ax.beginPath(); ax.arc(hd[0],hd[1],3.2,0,Math.PI*2); ax.fill();   // handske
+      // hjälm med skärm och glasögon
+      ax.fillStyle="#f97316"; ax.beginPath(); ax.arc(he[0],he[1],9.5,0,Math.PI*2); ax.fill();
+      ax.strokeStyle="#fff"; ax.lineWidth=2.5; ax.beginPath(); ax.arc(he[0],he[1],6.5,Math.PI*1.05,Math.PI*1.75); ax.stroke();
+      poly([[he[0]+2,he[1]-8],[he[0]+15,he[1]-9],[he[0]+7,he[1]-4]],"#ea580c");
+      ax.fillStyle="#111827"; ax.beginPath(); ax.roundRect ? ax.roundRect(he[0]+2,he[1]-3,9,6,2.5) : ax.rect(he[0]+2,he[1]-3,9,6); ax.fill();
+      ax.fillStyle="#67e8f9"; ax.fillRect(he[0]+4,he[1]-1.6,5,2.4);
+      ax.fillStyle="#334155"; ax.beginPath(); ax.moveTo(he[0]+4,he[1]+4); ax.lineTo(he[0]+11,he[1]+6); ax.lineTo(he[0]+3,he[1]+9); ax.closePath(); ax.fill();
+    }
+    ax.restore();
+  },
+  draw(){
+    const W=A.W,H=A.H,s=A.cs,K=A.K;
+    const g=ax.createLinearGradient(0,0,0,H); g.addColorStop(0,"#7dd3fc"); g.addColorStop(1,"#e0f2fe");
+    ax.fillStyle=g; ax.fillRect(-20,-20,W+40,H+40);
+    ax.fillStyle="#fde047"; ax.beginPath(); ax.arc(W-40,A.cardsBot+30,22,0,Math.PI*2); ax.fill();
+    // kullar
+    ax.fillStyle="#86efac"; ax.beginPath(); ax.moveTo(-20,A.gy);
+    for(let x=-20;x<=W+20;x+=20) ax.lineTo(x, A.gy-60*K-Math.sin(x/90)*22*K-Math.sin(x/37)*8);
+    ax.lineTo(W+20,A.gy); ax.fill();
+    // publik och flaggor
+    for(const f of A.flags){ const x=f.x*W, y=A.gy-36*K;
+      ax.strokeStyle="#475569"; ax.lineWidth=2; ax.beginPath(); ax.moveTo(x,A.gy); ax.lineTo(x,y); ax.stroke();
+      ax.fillStyle=f.c; ax.beginPath(); ax.moveTo(x,y); ax.lineTo(x+14+Math.sin(A.t*6+x)*2,y+5); ax.lineTo(x,y+10); ax.fill(); }
+    // mark
+    ax.fillStyle="#a16207"; ax.fillRect(-20,A.gy,W+40,H-A.gy+20);
+    ax.fillStyle="#854d0e"; for(let x=(A.t*0)%20;x<W;x+=26) ax.fillRect(x,A.gy+8,10,3);
+    // hopp och landning
+    ax.fillStyle="#92400e";
+    ax.beginPath(); ax.moveTo(A.r1,A.gy); ax.lineTo(A.r2,A.rTop); ax.lineTo(A.r2,A.gy); ax.closePath(); ax.fill();
+    ax.beginPath(); ax.moveTo(A.l1-8,A.gy); ax.lineTo(A.l1-8,A.lTop); ax.lineTo(A.l1,A.lTop); ax.lineTo(A.l2,A.gy); ax.closePath(); ax.fill();
+    ax.strokeStyle="#78350f"; ax.lineWidth=3;
+    ax.beginPath(); ax.moveTo(A.r1,A.gy); ax.lineTo(A.r2,A.rTop); ax.moveTo(A.l1,A.lTop); ax.lineTo(A.l2,A.gy); ax.stroke();
+    emo("🏁", A.l2+18, A.gy-14, 22);
+    // föraren
+    if(A.st==="crash"){
+      this.rider(A.cbx, A.cby, A.cbr, 1, 0, "sit", 0, "bike");
+      this.rider(A.cpx, A.cpy, A.cpr, 1, 0, "tumble", 1, "body", 34);
+      if(A.dust) emo("💫", A.cpx, A.cpy-60*A.K, 22*A.K, A.t*6);
+    } else this.rider(A.rx, A.ry, A.rot, A.sx, A.bikeRot, A.poseName, A.pw);
+    // trickets namn, noterna och tiden
+    ax.font=`800 ${Math.round(17*Math.max(.9,s))}px 'Baloo 2', system-ui`; ax.fillStyle="#1e1b4b"; ax.textAlign="center"; ax.textBaseline="middle";
+    if(A.trick && (A.st==="wait"||A.st==="enter")) ax.fillText(`${A.round+1}/${A.plan.length} · ${A.trick.name}`, W/2, A.cardsBot+14);
+    if(A.st==="wait"||A.st==="enter"){
+      for(const it of A.items){
+        card(it,it.x,it.y,s,0,it.live?1:.45);
+        if(!it.live) emo("✅", it.x+34*s, it.y-30*s, 26*s);
+      }
+      if(A.st==="wait"){ const n=A.items.length, gap=Math.min(W/3,120*s), bw=(n-1)*gap+92*s; timeBar(W/2-12, A.cardsBot-6, bw-24, A.left/A.limit);
+        // försök kvar: tre prickar till höger om tidsmätaren
+        for(let k=0;k<3;k++){ ax.fillStyle = k<3-A.tries ? "#22c55e" : "rgba(0,0,0,.25)";
+          ax.beginPath(); ax.arc(W/2+bw/2-18+k*11, A.cardsBot-2.5, 4.5, 0, Math.PI*2); ax.fill(); } }
+    }
+  }
+},
 /* ---- Labyrinten: led ugglan ut, Tjuv-Tore jagar ---- */
 maze:{
   ORDER:[3,0,2,1],                       // panelens ordning: vänster, upp, ner, höger
