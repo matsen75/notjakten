@@ -162,6 +162,12 @@ h2{margin:0 0 8px;font-weight:800}
 .ctrl{display:flex;gap:12px}
 .ctrl .btn{flex:1;font-size:2rem;padding:10px;touch-action:none}
 
+/* Äventyr */
+.lvl.arcLvl{border-color:#fcd34d;background:linear-gradient(135deg,#fff,#fef3c7)}
+#arcade{gap:10px;height:100vh;height:100dvh;min-height:0}
+.arcArena{flex:1 1 0;height:auto;min-height:220px;background:#1e1b4b}
+#arc{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
 /* Håll överkanten på en rad även på smala telefoner */
 .hud{flex-wrap:nowrap}
 .hud .progress{min-width:40px}
@@ -266,6 +272,28 @@ h2{margin:0 0 8px;font-weight:800}
   </div>
 </section>
 
+<!-- ÄVENTYR (nivå 7–9) -->
+<section id="arcade" class="screen">
+  <div class="hud">
+    <button class="btn small ghost" id="arcQuit">✖</button>
+    <div class="progress"><div id="arcBar"></div></div>
+    <div class="streak" id="arcStreak">&nbsp;</div>
+    <div class="pill">🏆 <span id="arcScore">0</span></div>
+  </div>
+  <div class="card arena arcArena">
+    <canvas id="arc"></canvas>
+    <div class="bossSays" id="arcSays"></div>
+    <div class="intro" id="arcIntro">
+      <div class="mascot" id="arcFace">🐭</div>
+      <h2 id="arcTitle">Äventyr!</h2>
+      <p id="arcStory"></p>
+      <p class="midiState">Spela noterna på pianot här nedanför – rätt tangent i rätt oktav!</p>
+      <button class="btn" id="arcGo">Kör! 🚀</button>
+    </div>
+  </div>
+  <div class="pianoWrap"><div class="piano" id="arcPiano"></div></div>
+</section>
+
 <!-- RESULT -->
 <section id="result" class="screen">
   <div class="card">
@@ -317,6 +345,9 @@ const WORLDS = [
     {id:"t4", name:"Hjälplinjerna", desc:"Noter som sticker ut ur systemet", clef:"treble", lo:"A3", hi:"C6"},
     {id:"t5", name:"Tidsjakten ⏱️", desc:"Alla G-klavsnoter – hinner du innan tiden tar slut?", clef:"treble", lo:"A3", hi:"C6", time:6, count:15},
     {id:"t6", name:"Tjuv-Tore 🦝", desc:"Tvättbjörnen har stulit noterna – fånga tillbaka dem!", clef:"treble", lo:"A3", hi:"C6", boss:"tore"},
+    {id:"t7", name:"Råttjakten 🐭", desc:"Fånga notmössen innan de gömmer sig!", clef:"treble", lo:"A3", hi:"C6", arcade:"mice"},
+    {id:"t8", name:"Rymdlasern 👾", desc:"Skjut ner rymdisarna med notlasern!", clef:"treble", lo:"A3", hi:"C6", arcade:"space"},
+    {id:"t9", name:"Polisjakten 🚓", desc:"Väj genom trafiken och fånga Tjuv-Tore!", clef:"treble", lo:"A3", hi:"C6", arcade:"police", thief:"tore"},
   ]},
   {key:"bass", icon:"bass", name:"F-klaven (vänster hand)", color:"var(--bass)", levels:[
     {id:"b1", name:"Ner från mitten-C", desc:"F G A H C", clef:"bass", lo:"F3", hi:"C4"},
@@ -325,6 +356,9 @@ const WORLDS = [
     {id:"b4", name:"Hjälplinjerna", desc:"Ännu längre upp och ner", clef:"bass", lo:"E2", hi:"E4"},
     {id:"b5", name:"Tidsjakten ⏱️", desc:"Alla F-klavsnoter – hinner du innan tiden tar slut?", clef:"bass", lo:"E2", hi:"E4", time:6, count:15},
     {id:"b6", name:"Trollet Brumm 🧌", desc:"Trollet har snott basnoterna – fånga tillbaka dem!", clef:"bass", lo:"E2", hi:"E4", boss:"brumm"},
+    {id:"b7", name:"Råttjakten 🐭", desc:"Fånga notmössen innan de gömmer sig!", clef:"bass", lo:"E2", hi:"E4", arcade:"mice"},
+    {id:"b8", name:"Rymdlasern 👾", desc:"Skjut ner rymdisarna med notlasern!", clef:"bass", lo:"E2", hi:"E4", arcade:"space"},
+    {id:"b9", name:"Polisjakten 🚓", desc:"Väj genom trafiken och fånga Trollet Brumm!", clef:"bass", lo:"E2", hi:"E4", arcade:"police", thief:"brumm"},
   ]},
   {key:"mix", name:"🏆 Mästarprovet", color:"var(--mix)", levels:[
     {id:"m1", name:"Båda händerna", desc:"G-klav och F-klav blandat!", clef:"mix", parts:[["treble","C4","C5"],["bass","C3","C4"]]},
@@ -374,7 +408,7 @@ function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.t
 
 /* ---------- Håll skärmen tänd under spelet (Screen Wake Lock) ---------- */
 let wakeLock=null, wakeBusy=false;
-const wantWake = ()=> save.settings.awake && ["game","boss","result"].some(id=>$(id).classList.contains("active"));
+const wantWake = ()=> save.settings.awake && ["game","boss","arcade","result"].some(id=>$(id).classList.contains("active"));
 async function updateWake(){
   if(!("wakeLock" in navigator) || wakeBusy) return;
   wakeBusy=true;
@@ -424,14 +458,20 @@ function clefIcon(){
   </svg>`;
 }
 // Bossen kräver ⭐⭐⭐ på alla övriga nivåer i samma klav
-function bossPrereqs(lv){ return WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels.filter(l=>!l.boss); }
+function bossPrereqs(lv){ return WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels.filter(l=>!l.boss && !l.arcade); }
 function bossMissing(lv){ return bossPrereqs(lv).filter(l=>(save.stars[l.id]||0)<3); }
+// Testläge: lägg till #lasupp sist i adressen så öppnas alla nivåer (sparas inte)
+let UNLOCK_ALL = /lasupp/.test(location.hash);
+window.addEventListener("hashchange",()=>{ UNLOCK_ALL=/lasupp/.test(location.hash); if($("map").classList.contains("active")) renderMap(); });
 function unlocked(lv){
+  if(UNLOCK_ALL) return true;
   const idx = ALL_LEVELS.findIndex(l=>l.id===lv.id);
   if(lv.id==="t1"||lv.id==="b1") return true;
   if(lv.boss) return bossMissing(lv).length===0;
   if(lv.id==="m1") return (save.stars.t2||0)>=NEED && (save.stars.b2||0)>=NEED;
-  const prev = ALL_LEVELS[idx-1]; return (save.stars[prev.id]||0)>=NEED;
+  const prev = ALL_LEVELS[idx-1];
+  if(lv.arcade && prev.boss) return (save.stars[prev.id]||0)>=1;   // första äventyret: besegra bossen
+  return (save.stars[prev.id]||0)>=NEED;
 }
 function renderMap(){
   $("hello").textContent = save.name ? `🦉 Hej ${save.name}!` : "🦉 Hej!";
@@ -443,11 +483,12 @@ function renderMap(){
     sec.innerHTML=`<h2>${w.icon?clefIcon(w.icon)+" ":""}${w.name}</h2><div class="levels"></div>`;
     w.levels.forEach((lv,i)=>{
       const st=save.stars[lv.id]||0, open=unlocked(lv);
-      const b=document.createElement("button"); b.className="lvl"+(lv.boss?" bossLvl":"")+(open?"":" locked");
-      b.innerHTML=`<span class="num" style="background:${lv.boss?"#dc2626":w.color}">Nivå ${i+1}${lv.boss?" · BOSS":""}</span>
+      const b=document.createElement("button"); b.className="lvl"+(lv.boss?" bossLvl":"")+(lv.arcade?" arcLvl":"")+(open?"":" locked");
+      b.innerHTML=`<span class="num" style="background:${lv.boss?"#dc2626":lv.arcade?"#d97706":w.color}">Nivå ${i+1}${lv.boss?" · BOSS":lv.arcade?" · ÄVENTYR":""}</span>
         <div class="name">${lv.name}</div><div class="desc">${lv.desc}</div>
         ${open?"":`<div class="desc" style="color:#c2410c;font-weight:700">${lv.boss
           ? `Lås upp: ⭐⭐⭐ på alla nivåer innan (${bossPrereqs(lv).length-bossMissing(lv).length} av ${bossPrereqs(lv).length} klara)`
+          : lv.arcade && ALL_LEVELS[ALL_LEVELS.findIndex(l=>l.id===lv.id)-1].boss ? "Lås upp: besegra bossen"
           : `Lås upp: ⭐⭐ på ${lv.id==="m1"?"nivå 2 i båda klaverna":"nivån innan"}`}</div>`}
         <div class="stars">${"⭐".repeat(st)}<span style="opacity:.2">${"⭐".repeat(3-st)}</span></div>`;
       b.onclick=()=>{
@@ -490,8 +531,8 @@ function staffSVG(clef, note, cls){
 
 /* ---------- Piano ---------- */
 let keyEls = {};
-function buildPiano(loD, hiD){
-  const P=$("piano"); P.innerHTML=""; keyEls={};
+function buildPiano(loD, hiD, id="piano"){
+  const P=$(id); P.innerHTML=""; keyEls={};
   P.classList.toggle("hideLabels", !save.settings.labels);
   const startD = Math.floor(loD/7)*7;                       // C of lowest octave
   const endD = (hiD%7===0) ? hiD : Math.floor(hiD/7)*7+6;    // up to B (or the C)
@@ -513,9 +554,9 @@ function keyDown(el){
   el.classList.add("down"); setTimeout(()=>el.classList.remove("down"),150);
   answer(m);
 }
-$("piano").addEventListener("pointerdown",e=>{
+["piano","arcPiano"].forEach(id=>$(id).addEventListener("pointerdown",e=>{
   const el=e.target.closest(".wk,.bk"); if(!el) return; e.preventDefault(); keyDown(el);
-});
+}));
 
 /* ---------- Game ---------- */
 let G=null;
@@ -531,6 +572,7 @@ function poolFor(lv){
 function startLevel(lv){
   actx();
   if(lv.boss) return startBoss(lv);
+  if(lv.arcade) return startArcade(lv);
   const {pool,lo,hi}=poolFor(lv);
   G={lv, pool, total:lv.count||NOTES_PER_ROUND, idx:0, mistakes:0, timeouts:0, noteMiss:0, streak:0, best:0, score:0, cur:null, prev:null, busy:false, t0:0, fast:0};
   buildPiano(lo,hi);
@@ -581,6 +623,7 @@ function isRight(m){
   return m===t;   // rätt tangent i rätt oktav krävs
 }
 function answer(m){
+  if(A && $("arcade").classList.contains("active")) return arcAnswer(m);
   if(!G || G.busy || !$("game").classList.contains("active")) return;
   const pc=m%12;
   if(![0,2,4,5,7,9,11].includes(pc)){ say("Psst! Alla noter här är vita tangenter 😉"); return; }
@@ -674,10 +717,10 @@ function showResult({lv, stars, score, title, stats, face}){
   // Påminnelse om vad som krävs för bossen
   const ri=$("resInfo"); ri.textContent="";
   const wl=WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels, boss=wl.find(l=>l.boss);
-  if(boss && !lv.boss && !unlocked(boss)){
+  if(boss && !lv.boss && !lv.arcade && !unlocked(boss)){
     const miss=bossMissing(boss);
     ri.textContent = `${BOSSES[boss.boss].emoji} Bossen väntar! Få ⭐⭐⭐ på alla nivåer för att möta den – ${miss.length===1?"bara 1 nivå kvar":`${miss.length} nivåer kvar`}.`;
-  } else if(boss && !lv.boss && stars>0 && unlocked(boss) && !(save.stars[boss.id])){
+  } else if(boss && !lv.boss && !lv.arcade && stars>0 && unlocked(boss) && !(save.stars[boss.id])){
     ri.textContent = `${BOSSES[boss.boss].emoji} Du har ⭐⭐⭐ på alla nivåer – bossen är upplåst!`;
   }
   $("nextBtn").onclick=()=>startLevel(nxt);
@@ -853,11 +896,11 @@ function endBoss(win){
 
 /* Ugglans animationer */
 const HOP=.6, EMOJI_FONT="system-ui, 'Segoe UI Emoji', 'Apple Color Emoji'";
-function burst(x,y,n,emojis,opt={}){
+function burst(x,y,n,emojis,opt={},arr){
   for(let k=0;k<n;k++){
     const a=(opt.up? -Math.PI/2 : 0) + (opt.up? (Math.random()-.5)*Math.PI*1.2 : Math.random()*Math.PI*2);
     const s=(opt.speed||220)*(.5+Math.random()*.7);
-    B.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,g:opt.g??300,life:opt.life||1,max:opt.life||1,
+    (arr||B.parts).push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,g:opt.g??300,life:opt.life||1,max:opt.life||1,
       e:pick(emojis),s:opt.size||(18+Math.random()*14),r:opt.col?(Math.random()-.5)*.6:Math.random()*6,vr:opt.col?0:(Math.random()-.5)*8,dust:!!opt.dust,col:opt.col});
   }
 }
@@ -927,13 +970,13 @@ function drawOwl(oy){
     cx.fillStyle="#000";
   }
 }
-function drawParts(){
-  for(const p of B.parts){
-    cx.globalAlpha=Math.min(1,p.life/(p.max*.5));
-    if(p.dust){ cx.fillStyle="#cbd5e1"; cx.beginPath(); cx.arc(p.x,p.y,p.s*(1.6-p.life/p.max),0,Math.PI*2); cx.fill(); }
-    else { cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle=p.col||"#000"; cx.font=`${p.col?"800 ":""}${p.s}px ${p.col?"'Baloo 2', ":""}${EMOJI_FONT}`; cx.fillText(p.e,0,0); cx.restore(); }
+function drawParts(g=cx, arr=B.parts){
+  for(const p of arr){
+    g.globalAlpha=Math.min(1,p.life/(p.max*.5));
+    if(p.dust){ g.fillStyle="#cbd5e1"; g.beginPath(); g.arc(p.x,p.y,p.s*(1.6-p.life/p.max),0,Math.PI*2); g.fill(); }
+    else { g.save(); g.translate(p.x,p.y); g.rotate(p.r); g.fillStyle=p.col||"#000"; g.font=`${p.col?"800 ":""}${p.s}px ${p.col?"'Baloo 2', ":""}${EMOJI_FONT}`; g.fillText(p.e,0,0); g.restore(); }
   }
-  cx.globalAlpha=1;
+  g.globalAlpha=1;
 }
 
 /* Bossens animationer */
@@ -986,25 +1029,25 @@ function drawBossChar(){
 }
 
 /* Ritning */
-function drawCard(c){
+function drawCard(c, g=cx){
   const w=100,h=86,x=c.x-w/2,y=c.y-h/2, sp=8, bot=y+60;
-  cx.save();
-  cx.shadowColor="rgba(0,0,0,.18)"; cx.shadowBlur=8; cx.shadowOffsetY=4;
-  cx.fillStyle="#fff"; cx.beginPath();
-  cx.roundRect ? cx.roundRect(x,y,w,h,14) : cx.rect(x,y,w,h); cx.fill();
-  cx.shadowColor="transparent";
-  cx.strokeStyle="#c4b5fd"; cx.lineWidth=3; cx.stroke();
-  cx.strokeStyle="#1e1b4b"; cx.lineWidth=1.4;
-  for(let k=0;k<5;k++){ const ly=bot-k*sp; cx.beginPath(); cx.moveTo(x+6,ly); cx.lineTo(x+w-6,ly); cx.stroke(); }
-  cx.fillStyle="#1e1b4b";
-  if(c.clef==="treble"){ cx.font=`${sp*4.6}px "Noto Music","Segoe UI Symbol"`; cx.fillText("𝄞",x+8,bot-sp); }
-  else { cx.font=`${sp*4.2}px "Noto Music","Segoe UI Symbol"`; cx.fillText("𝄢",x+8,bot-sp); }
+  g.save(); g.textAlign="left"; g.textBaseline="alphabetic";
+  g.shadowColor="rgba(0,0,0,.18)"; g.shadowBlur=8; g.shadowOffsetY=4;
+  g.fillStyle="#fff"; g.beginPath();
+  g.roundRect ? g.roundRect(x,y,w,h,14) : g.rect(x,y,w,h); g.fill();
+  g.shadowColor="transparent";
+  g.strokeStyle="#c4b5fd"; g.lineWidth=3; g.stroke();
+  g.strokeStyle="#1e1b4b"; g.lineWidth=1.4;
+  for(let k=0;k<5;k++){ const ly=bot-k*sp; g.beginPath(); g.moveTo(x+6,ly); g.lineTo(x+w-6,ly); g.stroke(); }
+  g.fillStyle="#1e1b4b";
+  if(c.clef==="treble"){ g.font=`${sp*4.6}px "Noto Music","Segoe UI Symbol"`; g.fillText("𝄞",x+8,bot-sp); }
+  else { g.font=`${sp*4.2}px "Noto Music","Segoe UI Symbol"`; g.fillText("𝄢",x+8,bot-sp); }
   const off=dia(c.note)-BOTTOM_DIA[c.clef], nx=x+66, ny=bot-off*sp/2;
-  cx.lineWidth=1.8;
-  for(let k=-2;k>=off;k-=2){ const ly=bot-k*sp/2; cx.beginPath(); cx.moveTo(nx-11,ly); cx.lineTo(nx+11,ly); cx.stroke(); }
-  for(let k=10;k<=off;k+=2){ const ly=bot-k*sp/2; cx.beginPath(); cx.moveTo(nx-11,ly); cx.lineTo(nx+11,ly); cx.stroke(); }
-  cx.beginPath(); cx.ellipse(nx,ny,6.2,4.6,-0.35,0,Math.PI*2); cx.fill();
-  cx.restore();
+  g.lineWidth=1.8;
+  for(let k=-2;k>=off;k-=2){ const ly=bot-k*sp/2; g.beginPath(); g.moveTo(nx-11,ly); g.lineTo(nx+11,ly); g.stroke(); }
+  for(let k=10;k<=off;k+=2){ const ly=bot-k*sp/2; g.beginPath(); g.moveTo(nx-11,ly); g.lineTo(nx+11,ly); g.stroke(); }
+  g.beginPath(); g.ellipse(nx,ny,6.2,4.6,-0.35,0,Math.PI*2); g.fill();
+  g.restore();
 }
 function drawBoss(){
   if(!B) return;
@@ -1049,6 +1092,538 @@ cv.addEventListener("pointermove",e=>{ if(B && (e.pointerType==="mouse" || e.but
 });
 $("bossQuit").onclick=()=>{ if(B) B.running=false; B=null; renderMap(); show("map"); };
 
+
+/* ---------- Äventyrsbanor (nivå 7–9): spela noterna på pianot ---------- */
+const ARC_GOAL = 15;
+const ARCADES = {
+  mice:{title:"Råttjakten 🐭", face:"🐭", go:"Fånga mössen! 🔨", win:"Alla notmöss fångade! 🐭🔨",
+    story:"Notmössen har flyttat in i köket! De gömmer sig i kakburkar, kastruller, lådor och mushål och tittar fram med en not var. Spela rätt not på pianot så fångar du musen innan den hinner gömma sig igen."},
+  space:{title:"Rymdlasern 👾", face:"👾", go:"Ladda lasern! ⚡", win:"Rymdisarna flydde hem till sin planet! 🚀",
+    story:"Elaka rymdisar kommer med stulna noter! Ugglans notlaserkanon skjuter när du spelar rätt not på pianot. Skjut ner dem innan de når basen!"},
+  police:{title:"Polisjakten 🚓", face:"🚓", go:"Slå på sirenen! 🚨", win:"Tjuven är fast! 🚨🎉",
+    story:"har rymt i en bil! Du kör polisbilen. När en bil är i vägen dyker en not upp i filen bredvid – spela den så styr du dit. Du har tre försök på varje not! Kör ikapp tjuven!"},
+};
+let A=null;
+const av=$("arc"), ax=av.getContext("2d");
+
+function startArcade(lv){
+  if(A) A.running=false;
+  const def=ARCADES[lv.arcade], {pool,lo,hi}=poolFor(lv);
+  A={lv, def, mode:lv.arcade, pool, W:0, H:0, t:0, last:0, running:false, over:false,
+     items:[], parts:[], fx:[], spawned:0, resolved:0, caught:0, goal:ARC_GOAL,
+     mistakes:0, missed:0, wrong:0, streak:0, best:0, score:0, next:.5, shake:0, prevM:null};
+  buildPiano(lo,hi,"arcPiano");
+  $("arcScore").textContent=0; $("arcStreak").innerHTML="&nbsp;"; $("arcBar").style.width="0%";
+  $("arcFace").textContent = lv.thief ? BOSSES[lv.thief].emoji : def.face;
+  $("arcTitle").textContent = def.title;
+  $("arcStory").textContent = lv.thief ? `${BOSSES[lv.thief].name} ${def.story}` : def.story;
+  $("arcGo").textContent = def.go;
+  $("arcIntro").style.display="";
+  show("arcade"); resizeArc(); MODES[A.mode].setup();
+  drawArc();
+  document.fonts && document.fonts.load(`40px "Noto Music"`).then(()=>A && drawArc());
+}
+$("arcGo").onclick=()=>{
+  if(!A) return; actx();
+  $("arcIntro").style.display="none";
+  resizeArc();
+  A.running=true; A.last=performance.now();
+  requestAnimationFrame(arcLoop);
+};
+$("arcQuit").onclick=()=>{ if(A) A.running=false; A=null; renderMap(); show("map"); };
+function resizeArc(){
+  const r=av.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  av.width=Math.round(r.width*dpr); av.height=Math.round(r.height*dpr);
+  ax.setTransform(dpr,0,0,dpr,0,0);
+  if(A){ A.W=Math.max(200,r.width); A.H=Math.max(200,r.height); MODES[A.mode].layout(); }
+}
+window.addEventListener("resize",()=>{ if(A && $("arcade").classList.contains("active")){ resizeArc(); drawArc(); } });
+
+function arcLoop(ts){
+  if(!A || !A.running) return;
+  const dt=Math.max(0,Math.min(.05,(ts-A.last)/1000)); A.last=ts; A.t+=dt;
+  A.shake=Math.max(0,A.shake-dt);
+  MODES[A.mode].update(dt);
+  for(const p of A.parts){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt; p.vx*=(1-dt*1.5); p.r+=p.vr*dt; p.life-=dt; }
+  A.parts=A.parts.filter(p=>p.life>0);
+  for(const f of A.fx){ f.t+=dt; f.y-=40*dt; }
+  A.fx=A.fx.filter(f=>f.t<1.4);
+  drawArc();
+  requestAnimationFrame(arcLoop);
+}
+const arcProg = ()=>A.resolved/A.goal;
+const arcLive = ()=>A.items.filter(i=>i.live);
+const arcMaxLive = ()=> A.resolved<4 ? 1 : A.resolved<10 ? 2 : 3;
+// ny not – aldrig samma tangent som en som redan syns
+function arcPick(){
+  const busy=new Set(arcLive().map(i=>i.m));
+  let c, n=0;
+  do{ c=pick(A.pool); n++; }while((busy.has(midi(c.note)) || A.prevM===midi(c.note)) && n<40);
+  A.prevM=midi(c.note); A.spawned++;
+  return {clef:c.clef, note:c.note, m:midi(c.note), live:true, x:0, y:0, urg:0, st:0};
+}
+function arcHud(){
+  $("arcBar").style.width=(A.resolved/A.goal*100)+"%";
+  $("arcScore").textContent=A.score;
+  const st=$("arcStreak");
+  st.textContent = A.streak>=2 ? `🔥 ${A.streak} i rad` : " ";
+  st.classList.remove("hot"); void st.offsetWidth; if(A.streak>=2) st.classList.add("hot");
+}
+let arcSayT=null;
+function arcSay(t){ const e=$("arcSays"); e.textContent=t; e.classList.add("show"); clearTimeout(arcSayT); arcSayT=setTimeout(()=>e.classList.remove("show"),2000); }
+function arcAnswer(m){
+  if(!A.running || A.over) return;
+  if(![0,2,4,5,7,9,11].includes(m%12)){ arcSay("Psst! Alla noter här är vita tangenter 😉"); return; }
+  const live=arcLive().filter(i=>!i.locked);
+  if(!live.length) return;
+  const hit=live.filter(i=>i.m===m).sort((a,b)=>b.urg-a.urg)[0];
+  const el=keyEls[m];
+  if(hit){
+    hit.live=false; A.resolved++; A.caught++; A.streak++; A.best=Math.max(A.best,A.streak);
+    const pts=10+Math.min(A.streak,10); A.score+=pts;
+    if(el){ el.classList.add("good"); setTimeout(()=>el.classList.remove("good"),300); }
+    A.fx.push({x:hit.x, y:hit.y, t:0, txt:`${SV[hit.note.i]} +${pts}`, col:A.dark?"#86efac":"#16a34a"});
+    arcSay(STREAK_MSG[A.streak] || pick(PRAISE));
+    setTimeout(sndGood,80);
+    MODES[A.mode].hit(hit);
+    arcHud();
+    if(A.resolved>=A.goal) arcEnd();
+  } else {
+    A.mistakes++; A.wrong++; A.streak=0; arcHud();
+    if(el){ el.classList.add("bad"); setTimeout(()=>el.classList.remove("bad"),400); }
+    sndBad();
+    const same=live.find(i=>i.m%12===m%12);
+    arcSay(same ? (m>same.m ? "Rätt namn, men för högt! Prova längre ner ⬅️" : "Rätt namn, men för lågt! Prova längre upp ➡️") : pick(OOPS));
+    MODES[A.mode].wrong && MODES[A.mode].wrong();
+  }
+}
+// noten hann undan
+function arcMiss(it, txt){
+  it.live=false; A.resolved++; A.missed++; A.mistakes++; A.streak=0;
+  A.fx.push({x:it.x, y:it.y, t:0, txt:`Det var ett ${SV[it.note.i]}`, col:A.dark?"#fca5a5":"#dc2626"});
+  sndBad(); arcHud(); arcSay(txt);
+  const k=keyEls[it.m]; if(k){ k.classList.add("glow"); setTimeout(()=>k.classList.remove("glow"),1300); }
+  if(A.resolved>=A.goal) arcEnd();
+}
+function arcEnd(){
+  if(A.over) return;
+  A.over=true;
+  MODES[A.mode].end();
+  const a=A;
+  setTimeout(()=>{
+    if(A!==a) return;
+    a.running=false;
+    const m=a.mistakes, stars = m<=1?3 : m<=4?2 : 1;
+    showResult({lv:a.lv, stars, score:a.score,
+      face: stars===3 ? "🤩" : a.lv.thief && a.mode==="police" ? "🚓" : a.def.face,
+      title: stars>=2 ? a.def.win : `${a.def.win} Spela igen för fler stjärnor 💪`,
+      stats:`
+        <div class="stat"><small>Poäng</small>🏆 ${a.score}</div>
+        <div class="stat"><small>Rätt</small>🎯 ${a.caught} av ${a.goal}</div>
+        <div class="stat"><small>Längsta svit</small>🔥 ${a.best}</div>
+        <div class="stat"><small>Hann undan</small>${a.missed}</div>
+        <div class="stat"><small>Felklick</small>${a.wrong===0?"0 😎":a.wrong}</div>`});
+    A=null;
+  }, 2200);
+}
+function drawArc(){
+  if(!A) return;
+  ax.save();
+  ax.clearRect(0,0,A.W,A.H);
+  if(A.shake>0) ax.translate(Math.sin(A.t*70)*8*A.shake, Math.cos(A.t*60)*4*A.shake);
+  ax.globalAlpha=1; ax.fillStyle="#000"; ax.textAlign="center"; ax.textBaseline="middle";
+  MODES[A.mode].draw();
+  ax.textAlign="center"; ax.textBaseline="middle";
+  drawParts(ax, A.parts);
+  ax.font="800 22px 'Baloo 2', system-ui";
+  A.fx.forEach(f=>{ ax.globalAlpha=Math.max(0,1-f.t/1.4); ax.fillStyle=f.col; ax.fillText(f.txt,Math.min(Math.max(f.x,80),A.W-80),f.y); });
+  ax.restore();
+}
+function emo(txt,x,y,size,rot=0,sx=1,sy=1,alpha=1){
+  ax.save(); ax.globalAlpha=alpha; ax.fillStyle="#000"; ax.translate(x,y); ax.rotate(rot); ax.scale(sx,sy);
+  ax.font=`${size}px ${EMOJI_FONT}`; ax.textAlign="center"; ax.textBaseline="middle"; ax.fillText(txt,0,0); ax.restore();
+}
+function card(it,x,y,s,rot=0,alpha=1){   // notkort centrerat på (x,y)
+  ax.save(); ax.globalAlpha=alpha; ax.translate(x,y); ax.rotate(rot); ax.scale(s,s);
+  drawCard({clef:it.clef, note:it.note, x:0, y:0}, ax); ax.restore();
+}
+function timeBar(x,y,w,f){
+  ax.fillStyle="rgba(0,0,0,.25)"; ax.beginPath(); ax.roundRect ? ax.roundRect(x-w/2,y,w,7,4) : ax.rect(x-w/2,y,w,7); ax.fill();
+  ax.fillStyle = f>.5?"#22c55e":f>.25?"#facc15":"#ef4444";
+  ax.beginPath(); ax.roundRect ? ax.roundRect(x-w/2,y,w*Math.max(0,f),7,4) : ax.rect(x-w/2,y,w*Math.max(0,f),7); ax.fill();
+}
+
+const MODES = {
+/* ---- Råttjakten: möss tittar upp ur mushål ---- */
+mice:{
+  setup(){ A.dark=false; A.lastHole=-1; this.layout(); },
+  layout(){
+    const cols=A.W>=600?4:3, cw=A.W/cols, rh=A.H/2;
+    A.cs=Math.min(1.4,(cw-22)/100,(rh-48)/172);          // plats för not + mus + gömställe
+    const s=A.cs;
+    A.shelfY=rh-6; A.floorY=A.H-22;
+    const top=["jar","pot","jar","box"], bot=["hole","box","hole","pot"];
+    A.holes=[];
+    for(let r=0;r<2;r++) for(let c=0;c<cols;c++){
+      const type=(r?bot:top)[c], base=r?A.floorY:A.shelfY;
+      const depth = type==="hole" ? 0 : type==="box" ? 40*s : 36*s;
+      A.holes.push({x:(c+.5)*cw, y:base-depth, base, w:cw, type});
+    }
+  },
+  // gömställen: kakburk, kastrull, låda och mushål
+  hideout(ho,s,open){
+    const x=ho.x, y=ho.y, b=ho.base, rr=(X,Y,W,H,R)=>{ ax.beginPath(); ax.roundRect ? ax.roundRect(X,Y,W,H,R) : ax.rect(X,Y,W,H); };
+    if(ho.type==="hole"){
+      ax.fillStyle="#1c1917"; ax.beginPath();
+      ax.moveTo(x-30*s,b); ax.lineTo(x-30*s,b-26*s); ax.arc(x,b-26*s,30*s,Math.PI,0); ax.lineTo(x+30*s,b); ax.closePath(); ax.fill();
+      ax.strokeStyle="#a8a29e"; ax.lineWidth=3*s; ax.stroke();
+    } else if(ho.type==="jar"){
+      ax.fillStyle="rgba(219,234,254,.95)"; rr(x-40*s,y,80*s,b-y,10*s); ax.fill();
+      ax.strokeStyle="#93c5fd"; ax.lineWidth=2.5*s; ax.stroke();
+      emo("🍪", x-14*s, y+(b-y)*.6, 20*s, -.3); emo("🍪", x+14*s, y+(b-y)*.62, 20*s, .4);
+      ax.fillStyle="#bfdbfe"; ax.beginPath(); ax.ellipse(x,y,34*s,6*s,0,0,Math.PI*2); ax.fill();
+      ax.fillStyle="rgba(255,255,255,.7)"; ax.fillRect(x+26*s,y+6*s,4*s,(b-y)-12*s);
+      ax.save();
+      if(open){ ax.translate(x+44*s,y-12*s); ax.rotate(1.1); } else ax.translate(x,y-5*s);
+      ax.fillStyle="#ef4444"; rr(-36*s,-5*s,72*s,10*s,4*s); ax.fill();
+      ax.fillStyle="#b91c1c"; rr(-7*s,-12*s,14*s,8*s,3*s); ax.fill();
+      ax.restore();
+    } else if(ho.type==="pot"){
+      ax.fillStyle="#475569"; ax.fillRect(x-50*s,y+8*s,14*s,6*s); ax.fillRect(x+36*s,y+8*s,14*s,6*s);
+      ax.fillStyle="#64748b"; rr(x-38*s,y,76*s,b-y,[0,0,12*s,12*s]); ax.fill();
+      ax.fillStyle="#94a3b8"; ax.fillRect(x-42*s,y-3*s,84*s,6*s);
+      ax.fillStyle="#1e293b"; ax.fillRect(x-36*s,y-1*s,72*s,2*s);
+      ax.save();
+      if(open){ ax.translate(x+46*s,y-16*s); ax.rotate(1.2); } else ax.translate(x,y-3*s);
+      ax.fillStyle="#94a3b8"; ax.beginPath(); ax.ellipse(0,0,40*s,12*s,0,Math.PI,0); ax.fill();
+      ax.fillStyle="#334155"; rr(-6*s,-17*s,12*s,7*s,3*s); ax.fill();
+      ax.restore();
+    } else if(ho.type==="box"){
+      ax.fillStyle="#c08443"; ax.save(); ax.translate(x-40*s,y);
+      if(open){ ax.rotate(-.7); ax.fillRect(-22*s,-6*s,24*s,6*s); } ax.restore();
+      ax.save(); ax.translate(x+40*s,y); if(open){ ax.rotate(.7); ax.fillRect(-2*s,-6*s,24*s,6*s); } ax.restore();
+      ax.fillStyle="#d4a373"; ax.fillRect(x-42*s,y,84*s,b-y);
+      ax.fillStyle="#78350f"; ax.fillRect(x-40*s,y,80*s,4*s);
+      if(!open){ ax.fillStyle="#c08443"; ax.fillRect(x-44*s,y-5*s,88*s,7*s); }
+      ax.fillStyle="#a16207"; ax.font=`800 ${11*s}px 'Baloo 2', system-ui`; ax.textAlign="center"; ax.textBaseline="middle";
+      ax.fillText("OSTAR 🧀", x, y+(b-y)*.6);
+    }
+  },
+  update(dt){
+    const p=arcProg();
+    if(!A.over && A.spawned<A.goal && arcLive().length<arcMaxLive()){
+      A.next-=dt;
+      if(A.next<=0){
+        const free=A.holes.map((_,k)=>k).filter(k=>!A.items.some(i=>i.h===k) && k!==A.lastHole);
+        if(free.length){
+          const it=arcPick(); it.h=pick(free); A.lastHole=it.h;
+          it.stay=6.5-2.5*p; it.age=0; it.up=0; it.state="up";
+          A.items.push(it); A.next=.6+Math.random()*.7;
+          tone(1400,.08,.05,"sine"); tone(1800,.08,.04,"sine",.07);   // pip!
+        }
+      }
+    }
+    for(const it of A.items){
+      const ho=A.holes[it.h]; if(!ho){ it.gone=true; continue; }
+      it.age+=dt;
+      if(it.state==="up"){
+        it.up=Math.min(1,it.up+dt*5); it.urg=it.age/it.stay;
+        if(it.age>=it.stay){ it.state="esc"; it.st=0; arcMiss(it,pick(["Musen smet! 🐭💨","Hihi, du hann inte!","Den gömde sig!"])); }
+      } else {
+        it.st+=dt;
+        if(it.st>(it.state==="hit"?.55:.35)) it.up=Math.max(0,it.up-dt*4);
+        if(it.up<=0) it.gone=true;
+      }
+      const s=A.cs; it.x=ho.x; it.y=ho.y-(44+43)*s;
+    }
+    A.items=A.items.filter(i=>!i.gone);
+  },
+  hit(it){
+    it.state="hit"; it.st=0;
+    burst(it.x, A.holes[it.h].y-30, 12, ["⭐","✨","💫","🧀","🍪"], {speed:230,g:260,life:.9}, A.parts);
+    tone(220,.12,.12,"square");
+  },
+  wrong(){},
+  end(){ arcSay("Alla möss är fångade! 🧀"); confetti(40); },
+  draw(){
+    const W=A.W,H=A.H, s=A.cs;
+    // randig tapet med prickar
+    ax.fillStyle="#fef3c7"; ax.fillRect(-20,-20,W+40,H+40);
+    ax.fillStyle="#fde68a"; for(let x=-10;x<W+40;x+=40) ax.fillRect(x,-20,16,H+40);
+    ax.fillStyle="rgba(236,72,153,.25)";
+    for(let y=24,r=0;y<A.floorY-20;y+=56,r++) for(let x=(r%2)*20+8;x<W;x+=40){ ax.beginPath(); ax.arc(x,y,3.5,0,Math.PI*2); ax.fill(); }
+    emo("🕰️", W-26, 26, 26);
+    // hylla
+    ax.fillStyle="#92400e"; ax.fillRect(-20,A.shelfY,W+40,10);
+    ax.fillStyle="#78350f"; ax.fillRect(-20,A.shelfY+10,W+40,4);
+    [16,W-22].forEach(x=>{ ax.beginPath(); ax.moveTo(x,A.shelfY+14); ax.lineTo(x+6,A.shelfY+14); ax.lineTo(x+6,A.shelfY+34); ax.closePath(); ax.fill(); });
+    // golvlist och trägolv
+    ax.fillStyle="#fff"; ax.fillRect(-20,A.floorY-16,W+40,16);
+    ax.fillStyle="#d6d3d1"; ax.fillRect(-20,A.floorY-3,W+40,3);
+    ax.fillStyle="#b45309"; ax.fillRect(-20,A.floorY,W+40,H-A.floorY+20);
+    ax.fillStyle="#92400e"; for(let x=10;x<W;x+=58) ax.fillRect(x,A.floorY,2,H-A.floorY);
+    // gömställen
+    for(const ho of A.holes) this.hideout(ho, s, A.items.some(i=>A.holes[i.h]===ho));
+    // möss
+    const riseH=(44+92)*s;
+    for(const it of A.items){
+      const ho=A.holes[it.h]; if(!ho) continue;
+      const ease=1-Math.pow(1-it.up,3), off=(1-ease)*riseH;
+      ax.save();
+      ax.beginPath(); ax.rect(ho.x-ho.w/2, ho.y-riseH-60, ho.w, riseH+60); ax.clip();
+      const my=ho.y-20*s+off, cy=ho.y-(44+43)*s+off;
+      let msx=1, msy=1, rot=0, face="🐭";
+      if(it.state==="hit"){ const k=Math.min(1,it.st/.15); msy=1-.4*k; msx=1+.25*k; face="🐭"; }
+      if(it.state==="up" && it.urg>.75) rot=Math.sin(A.t*30)*.12;          // musen darrar – snart smiter den!
+      if(it.state==="esc") rot=Math.sin(A.t*20)*.2;
+      card(it, ho.x, cy, s, it.state==="hit"? it.st*3 : 0, it.state==="hit"? Math.max(0,1-it.st*2) : 1);
+      emo(face, ho.x, my, 46*s, rot, msx, msy);
+      if(it.state==="up") timeBar(ho.x, cy-43*s-11, 76*s, 1-it.age/it.stay);
+      ax.restore();
+      if(it.state==="hit" && it.st<.4){   // klubban slår!
+        const a=-1.2+Math.min(1,it.st/.12)*1.4;
+        emo("🔨", ho.x+28*s, my-30*s, 44*s, a);
+        if(it.st>.1) emo("💫", ho.x, my-34*s, 22*s, A.t*6);
+      }
+      if(it.state==="esc" && it.st<.35) emo("💨", ho.x+30*s, my, 26*s);
+    }
+  }
+},
+
+/* ---- Rymdlasern: skjut ner rymdisar med notlasern ---- */
+space:{
+  setup(){
+    A.dark=true; A.aim=-Math.PI/2; A.beam=null; A.shield=0; A.fizz=0;
+    A.stars=Array.from({length:80},()=>({x:Math.random(),y:Math.random(),s:.6+Math.random()*1.8,tw:Math.random()*6}));
+    this.layout();
+  },
+  layout(){ A.cs=Math.min(1.3,(A.W/Math.max(2,Math.floor(A.W/115))-10)/100, A.H/330); },
+  update(dt){
+    const p=arcProg(), s=A.cs, base=A.H-74;
+    const lanes=Math.max(2,Math.floor(A.W/115));
+    if(!A.over && A.spawned<A.goal && arcLive().length<arcMaxLive()){
+      A.next-=dt;
+      if(A.next<=0){
+        const used=arcLive().filter(i=>i.y<A.H*.45).map(i=>i.lane);
+        const free=[...Array(lanes).keys()].filter(k=>!used.includes(k));
+        if(free.length){
+          const it=arcPick(); it.lane=pick(free); it.x=(it.lane+.5)*A.W/lanes; it.y=-60*s;
+          it.v=(base+60*s)/(10-4*p); it.alien=pick(["👾","👽","🛸","🐙","🤖"]); it.wob=Math.random()*6;
+          A.items.push(it); A.next=1+Math.random()*.9;
+        }
+      }
+    }
+    for(const it of A.items){
+      if(it.live){
+        it.y+=it.v*dt; it.urg=it.y;
+        if(it.y+43*s>=base){ it.state="esc"; it.st=0; A.shield=.7; A.shake=.35;
+          burst(it.x, base, 8, ["⚡","💥"], {speed:200,g:0,life:.5}, A.parts);
+          arcMiss(it, pick(["Aj! En rymdis nådde basen! 🛡️","Sköldarna skakar!","Den slank igenom!"])); }
+      } else {
+        it.st+=dt;
+        if(it.state==="esc") it.y-=520*dt;
+        if(it.st>.8 || it.y<-150) it.gone=true;
+      }
+    }
+    A.items=A.items.filter(i=>!i.gone);
+    for(const st of A.stars){ st.y+=dt*(.02+st.s*.015); if(st.y>1) { st.y=0; st.x=Math.random(); } }
+    if(A.beam){ A.beam.t-=dt; if(A.beam.t<=0) A.beam=null; }
+    A.shield=Math.max(0,A.shield-dt); A.fizz=Math.max(0,A.fizz-dt);
+    // kanonen siktar mot den rymdis som är närmast
+    const tgt=A.beam || arcLive().sort((a,b)=>b.urg-a.urg)[0];
+    const want = tgt ? Math.atan2(tgt.y-(A.H-40), tgt.x-A.W/2) : -Math.PI/2;
+    A.aim += (want-A.aim)*Math.min(1,dt*10);
+  },
+  hit(it){
+    it.state="hit"; it.st=0; A.beam={x:it.x+Math.sin(A.t*2+it.wob)*8, y:it.y, t:.25};
+    burst(it.x, it.y, 14, ["💥","✨","⭐","🌟"], {speed:260,g:120,life:.9}, A.parts);
+    [0,1,2].forEach(k=>tone(1600-k*450,.09,.07,"square",k*.04));    // piu-piu!
+  },
+  wrong(){ A.fizz=.4; burst(A.W/2, A.H-60, 4, ["💨"], {up:true,speed:90,g:0,life:.6,size:18}, A.parts); },
+  end(){ arcSay("Alla rymdisar flyr hem! 🚀"); A.items.forEach(i=>{ if(!i.gone){ i.state="esc"; i.live=false; } }); confetti(40); },
+  draw(){
+    const W=A.W,H=A.H,s=A.cs, base=H-74;
+    const g=ax.createLinearGradient(0,0,0,H); g.addColorStop(0,"#0b1026"); g.addColorStop(1,"#312e81");
+    ax.fillStyle=g; ax.fillRect(-20,-20,W+40,H+40);
+    for(const st of A.stars){ ax.globalAlpha=.4+.6*Math.abs(Math.sin(A.t*2+st.tw)); ax.fillStyle="#fff"; ax.beginPath(); ax.arc(st.x*W,st.y*H,st.s,0,Math.PI*2); ax.fill(); }
+    ax.globalAlpha=1;
+    // planet i hörnet
+    const pg=ax.createRadialGradient(W-40,50,6,W-30,60,46); pg.addColorStop(0,"#f9a8d4"); pg.addColorStop(1,"#a21caf");
+    ax.fillStyle=pg; ax.globalAlpha=.55; ax.beginPath(); ax.arc(W-30,60,40,0,Math.PI*2); ax.fill(); ax.globalAlpha=1;
+    // rymdisar
+    for(const it of A.items){
+      const x=it.x+Math.sin(A.t*2+it.wob)*8;
+      if(it.state==="hit"){
+        const k=it.st; card(it,x,it.y,s,k*5,Math.max(0,1-k*2));
+        emo(it.alien, x, it.y-43*s-20*s, 44*s*(1+k), k*8, 1,1, Math.max(0,1-k*1.6));
+      } else {
+        card(it,x,it.y,s);
+        emo(it.alien, x, it.y-43*s-20*s+Math.sin(A.t*6+it.wob)*3, 44*s);
+      }
+    }
+    // laserstråle
+    const cxp=W/2, cyp=H-40, tip={x:cxp+Math.cos(A.aim)*44, y:cyp+Math.sin(A.aim)*44};
+    if(A.beam){
+      const a=A.beam.t/.25;
+      ax.lineCap="round";
+      ax.strokeStyle=`rgba(240,171,252,${a})`; ax.lineWidth=14; ax.beginPath(); ax.moveTo(tip.x,tip.y); ax.lineTo(A.beam.x,A.beam.y); ax.stroke();
+      ax.strokeStyle=`rgba(255,255,255,${a})`; ax.lineWidth=5; ax.beginPath(); ax.moveTo(tip.x,tip.y); ax.lineTo(A.beam.x,A.beam.y); ax.stroke();
+    }
+    // sköld
+    ax.strokeStyle = A.shield>0 ? `rgba(239,68,68,${.5+.5*Math.sin(A.t*40)})` : `rgba(56,189,248,${.35+.15*Math.sin(A.t*3)})`;
+    ax.lineWidth=4; ax.setLineDash([10,8]); ax.beginPath(); ax.moveTo(0,base); ax.lineTo(W,base); ax.stroke(); ax.setLineDash([]);
+    // kanon + uggla
+    ax.save(); ax.translate(cxp,cyp); ax.rotate(A.aim);
+    ax.fillStyle="#94a3b8"; ax.beginPath(); ax.roundRect ? ax.roundRect(0,-9,48,18,6) : ax.rect(0,-9,48,18); ax.fill();
+    ax.fillStyle=A.beam?"#f0abfc":A.fizz>0?"#64748b":"#22d3ee"; ax.fillRect(40,-10,10,20);
+    ax.restore();
+    ax.fillStyle="#475569"; ax.beginPath(); ax.arc(cxp,cyp+8,30,Math.PI,0); ax.fill();
+    ax.fillStyle="#334155"; ax.fillRect(cxp-46,cyp+8,92,40);
+    emo("🦉", cxp, cyp-6, 38, 0, 1, 1+(A.beam?.08:0));
+  }
+},
+
+/* ---- Polisjakten: väj genom trafiken, fånga tjuven ---- */
+police:{
+  setup(){
+    A.dark=false; A.lane=1; A.px=null; A.scroll=0; A.slow=0; A.tlane=1; A.tx=null; A.tswap=2; A.endT=-1;
+    A.thief=BOSSES[A.lv.thief]||BOSSES.tore;
+    A.trees=Array.from({length:8},(_,k)=>({side:k%2, y:k/8, e:pick(["🌳","🌲","🏠","🌳","🌷"])}));
+    this.layout();
+  },
+  layout(){
+    A.rw=Math.min(A.W*.84,440); A.rl=(A.W-A.rw)/2; A.lw=A.rw/3;
+    A.cw=Math.min(A.lw*.52,A.H/9,80); A.ch=A.cw*1.75; A.py=A.H-A.ch/2-14;
+    A.cs=Math.min(1.15,(A.lw-6)/100, (A.H-A.ch*2)/260);
+    if(A.px===null) A.px=this.lx(A.lane);
+  },
+  lx(k){ return A.rl+(k+.5)*A.lw; },
+  update(dt){
+    const p=arcProg(), s=A.cs;
+    A.slow=Math.max(0,A.slow-dt);
+    const speed=(260+140*p)*(A.slow>0?.35:1)*(A.endT>=0?Math.max(0,1-A.endT):1);
+    A.scroll+=speed*dt;
+    for(const t of A.trees){ t.y+=speed*dt/A.H; if(t.y>1.1){ t.y-=1.2; t.e=pick(["🌳","🌲","🏠","🌳","🌷","🐄"]); } }
+    // bil i vägen
+    if(!A.over && A.spawned<A.goal && arcLive().length===0){
+      A.next-=dt;
+      if(A.next<=0){
+        const it=arcPick(); it.lane=A.lane; it.cx=this.lx(it.lane); it.cy=-A.ch;
+        it.tlane=pick(A.lane===1?[0,2]:[1]);   // filen man ska styra till – där sitter noten
+        it.v=(A.py-A.ch+A.ch)/(7.5-3*p); it.col=pick(["#ef4444","#f59e0b","#8b5cf6","#0ea5e9","#ec4899","#64748b"]);
+        A.items.push(it); A.next=.5+Math.random()*.5;
+      }
+    }
+    for(const it of A.items){
+      it.cx += (this.lx(it.lane)-it.cx)*Math.min(1,dt*5);
+      if(it.live){
+        it.cy+=it.v*dt; it.urg=it.cy;
+        if(it.lane===A.lane && it.cy>=A.py-A.ch-2){
+          it.state="crash"; A.shake=.5; A.slow=1.2;
+          burst(A.px, A.py-A.ch/2, 10, ["💥","💨","⭐"], {speed:220,g:200,life:.8}, A.parts);
+          it.lane = it.lane===0?1 : it.lane===2?1 : pick([0,2]);      // bilen kör åt sidan
+          arcMiss(it, it.locked ? `Krock! Det var ett ${SV[it.note.i]}.` : pick(["Krock! Bilen kör undan…","Pang! Tjuven drar ifrån!","Oj, en krock! Kör vidare!"]));
+        }
+      } else it.cy += (it.state==="crash"? 80 : speed*.6)*dt + (it.state==="crash"?0:0);
+      if(!it.live) it.st+=dt;
+      if(it.state==="crash" && it.st>1.2) it.cy+=speed*dt;
+      if(it.cy>A.H+A.ch*2) it.gone=true;
+      it.x=this.lx(it.tlane); it.y=it.cy;
+    }
+    A.items=A.items.filter(i=>!i.gone);
+    // polisbilen glider mellan filerna
+    const tx=this.lx(A.lane); A.pvx=(tx-A.px); A.px += (tx-A.px)*Math.min(1,dt*9);
+    // tjuven sicksackar längst fram
+    const ty = A.endT>=0 ? A.py-A.ch*1.15 : 26+A.ch/2 + p*(A.H*.32);
+    A.ty = A.ty==null ? ty : A.ty + (ty-A.ty)*Math.min(1,dt*(A.endT>=0?2.5:1.5));
+    if(A.endT<0){
+      // tjuven håller sig undan från bilar som är på väg mot honom
+      const danger=k=>A.items.some(i=>i.lane===k && i.cy>A.ty-Math.max(A.ch*3,i.v*1.3) && i.cy<A.ty+A.ch*1.4);
+      const near=k=>Math.abs(k-A.tlane);
+      A.tswap-=dt;
+      if(danger(A.tlane)){
+        const safe=[0,1,2].filter(k=>k!==A.tlane && !danger(k)).sort((a,b)=>near(a)-near(b));
+        if(safe.length){ A.tlane=safe[0]; A.tswap=1.5+Math.random()*2; }
+      } else if(A.tswap<=0){
+        A.tswap=1.5+Math.random()*2;
+        const opts=[0,1,2].filter(k=>near(k)===1 && !danger(k));
+        if(opts.length) A.tlane=pick(opts);
+      }
+    }
+    else { A.tlane=A.lane; A.endT+=dt; if(Math.random()<dt*6) burst(A.tx, A.ty-20, 1, ["🚨","⭐","✨"], {up:true,speed:150,g:100,life:.9}, A.parts); }
+    const ttx=this.lx(A.tlane); A.tx = A.tx==null ? ttx : A.tx+(ttx-A.tx)*Math.min(1,dt*3);
+  },
+  hit(it){
+    A.lane=it.tlane;
+    burst(A.px, A.py+A.ch/2, 6, ["💨"], {speed:120,g:-30,life:.6,size:20}, A.parts);
+    tone(500,.18,.05,"sawtooth"); tone(700,.18,.05,"sawtooth",.1);   // vroom
+  },
+  wrong(){
+    const it=arcLive().find(i=>!i.locked); if(!it) return;
+    it.tries=(it.tries||0)+1;
+    if(it.tries>=3){
+      it.locked=true; it.v=Math.max(it.v, A.H*2.2);       // bilen bromsar in – krock!
+      arcSay(`Tre försök – det var ett ${SV[it.note.i]}! Akta! 💥`);
+    } else arcSay($("arcSays").textContent+` (${3-it.tries} försök kvar)`);
+  },
+  end(){ A.endT=0; arcSay(`Fast! ${A.thief.name} är tagen! 🚨`); confetti(60); },
+  car(x,y,col,rot=0,police=false,face=null){
+    const w=A.cw,h=A.ch;
+    ax.save(); ax.translate(x,y); ax.rotate(rot);
+    ax.fillStyle="rgba(0,0,0,.2)"; ax.beginPath(); ax.roundRect ? ax.roundRect(-w/2+4,-h/2+6,w,h,12) : ax.rect(-w/2+4,-h/2+6,w,h); ax.fill();
+    ax.fillStyle="#111827"; [[-1,-.3],[1,-.3],[-1,.3],[1,.3]].forEach(([sx,sy])=>{ ax.fillRect(sx*w/2-(sx<0?3:4)+ (sx<0?-1:0), sy*h-8, 7, 16); });
+    ax.fillStyle=col; ax.beginPath(); ax.roundRect ? ax.roundRect(-w/2,-h/2,w,h,12) : ax.rect(-w/2,-h/2,w,h); ax.fill();
+    if(police){ ax.fillStyle="#1e3a8a"; ax.fillRect(-w/2,-h*.08,w,h*.16); }
+    ax.fillStyle="rgba(30,41,59,.85)";
+    ax.beginPath(); ax.roundRect ? ax.roundRect(-w*.38,-h*.36,w*.76,h*.2,5) : ax.rect(-w*.38,-h*.36,w*.76,h*.2); ax.fill();
+    ax.beginPath(); ax.roundRect ? ax.roundRect(-w*.36,h*.24,w*.72,h*.13,4) : ax.rect(-w*.36,h*.24,w*.72,h*.13); ax.fill();
+    ax.fillStyle="#fef08a"; ax.fillRect(-w*.42,-h/2+1,w*.18,4); ax.fillRect(w*.24,-h/2+1,w*.18,4);
+    if(police){
+      const on=Math.floor(A.t*8)%2;
+      ax.fillStyle=on?"#ef4444":"#7f1d1d"; ax.fillRect(-w*.34,-h*.12,w*.32,8);
+      ax.fillStyle=on?"#1e3a8a":"#3b82f6"; ax.fillRect(w*.02,-h*.12,w*.32,8);
+      ax.globalAlpha=.25; ax.fillStyle=on?"#ef4444":"#3b82f6"; ax.beginPath(); ax.arc(0,-h*.08,w*.9,0,Math.PI*2); ax.fill(); ax.globalAlpha=1;
+    }
+    ax.restore();
+    if(face) emo(face, x, y+h*.05, w*.62);
+  },
+  draw(){
+    const W=A.W,H=A.H,s=A.cs;
+    ax.fillStyle="#86efac"; ax.fillRect(-20,-20,W+40,H+40);
+    for(const t of A.trees){ const x=t.side? A.rl+A.rw+Math.max(14,A.rl/2) : Math.min(A.rl-14,A.rl/2); emo(t.e, x, t.y*H, 26); }
+    ax.fillStyle="#475569"; ax.fillRect(A.rl,-20,A.rw,H+40);
+    ax.fillStyle="#f8fafc"; ax.fillRect(A.rl+3,-20,4,H+40); ax.fillRect(A.rl+A.rw-7,-20,4,H+40);
+    ax.fillStyle="rgba(255,255,255,.8)";
+    const off=A.scroll%48;
+    for(let k=1;k<3;k++){ const x=A.rl+k*A.lw-2; for(let y=-48+off;y<H;y+=48) ax.fillRect(x,y,4,26); }
+    // tjuven
+    this.car(A.tx, A.ty, "#22c55e", (A.endT<0? Math.sin(A.t*3)*.06 : 0), false, A.thief.emoji);
+    if(A.endT>=0 && A.endT>.4){ emo("🚨", A.tx+A.cw*.8, A.ty-A.ch*.4, 28, Math.sin(A.t*10)*.3); }
+    // bilar i vägen
+    for(const it of A.items){
+      const rot = it.state==="crash" ? Math.sin(Math.min(1,it.st)*Math.PI)*.4 : 0;
+      this.car(it.cx, it.cy, it.col, rot);
+      if(it.live && !it.locked){
+        // markera filen man ska styra till
+        ax.fillStyle=`rgba(250,204,21,${.18+.1*Math.sin(A.t*6)})`;
+        ax.fillRect(this.lx(it.tlane)-A.lw/2+4, it.cy-43*s-24, A.lw-8, A.py-it.cy+43*s+24);
+        card(it, it.x, it.y, s);
+        // försök kvar: tre prickar under noten
+        for(let k=0;k<3;k++){ ax.fillStyle = k<3-(it.tries||0) ? "#22c55e" : "rgba(0,0,0,.25)";
+          ax.beginPath(); ax.arc(it.x+(k-1)*14, it.y+43*s+10, 5, 0, Math.PI*2); ax.fill(); }
+      }
+      else if(it.st<.6 && it.state!=="crash") card(it, it.x, it.y-it.st*60, s, it.st*4, Math.max(0,1-it.st*2));
+    }
+    // polisbilen
+    this.car(A.px, A.py, "#f8fafc", Math.max(-.35,Math.min(.35,A.pvx/180)), true, "🦉");
+    if(A.slow>0) emo("💫", A.px, A.py-A.ch*.6, 24, A.t*8);
+    if(A.endT>=0 && A.endT>.8){ ax.font="800 34px 'Baloo 2', system-ui"; ax.fillStyle="#1e3a8a"; ax.textAlign="center"; ax.fillText("FAST! 🚨", W/2, H*.4); }
+  }
+},
+};
+document.addEventListener("keydown",e=>{
+  if(A && $("arcade").classList.contains("active") && (e.key==="Enter"||e.key===" ") && $("arcIntro").style.display!=="none"){ $("arcGo").click(); e.preventDefault(); }
+});
 
 /* ---------- MIDI ---------- */
 function initMidi(){
