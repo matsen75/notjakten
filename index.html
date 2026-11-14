@@ -1082,7 +1082,7 @@ function drawBoss(){
   cx.textAlign="center"; cx.textBaseline="middle";
   // kort (ritas före bossen så att bossen syns överst)
   cx.textAlign="left"; cx.textBaseline="alphabetic";
-  B.cards.forEach(drawCard);
+  B.cards.forEach(c=>drawCard(c));
   // boss
   cx.textAlign="center"; cx.textBaseline="middle"; cx.fillStyle="#000";
   drawBossChar();
