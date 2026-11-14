@@ -165,6 +165,7 @@ h2{margin:0 0 8px;font-weight:800}
 
 /* Äventyr */
 .lvl.arcLvl{border-color:#fcd34d;background:linear-gradient(135deg,#fff,#fef3c7)}
+.lvl.repLvl{border-color:#86efac;background:linear-gradient(135deg,#fff,#dcfce7)}
 #arcade{gap:10px;height:100vh;height:100dvh;min-height:0}
 .arcArena{flex:1 1 0;height:auto;min-height:220px;background:#1e1b4b}
 #arc{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -343,9 +344,12 @@ const WORLDS = [
   {key:"treble", name:"🎼 G-klaven (höger hand)", color:"var(--treble)", levels:[
     {id:"t1", name:"Mitten-C och kompisar", desc:"C D E F G – fem fingrar!", clef:"treble", lo:"C4", hi:"G4"},
     {id:"t2", name:"Hela oktaven", desc:"Från mitten-C upp till nästa C", clef:"treble", lo:"C4", hi:"C5"},
+    {id:"tr1", name:"Repetition 🔁", desc:"Nivå 1 och 2 blandat – ingen brådska!", clef:"treble", lo:"C4", hi:"C5", count:12, rep:true, practice:true},
     {id:"t3", name:"Högt upp", desc:"Alla linjer och mellanrum", clef:"treble", lo:"D4", hi:"G5"},
     {id:"t4", name:"Hjälplinjerna", desc:"Noter som sticker ut ur systemet", clef:"treble", lo:"A3", hi:"C6"},
-    {id:"t5", name:"Tidsjakten ⏱️", desc:"Alla G-klavsnoter – hinner du innan tiden tar slut?", clef:"treble", lo:"A3", hi:"C6", time:6, count:15},
+    {id:"tr2", name:"Stora repetitionen 🔁", desc:"Allt du lärt dig hittills – ingen brådska!", clef:"treble", lo:"A3", hi:"C6", count:15, rep:true, practice:true},
+    {id:"tt1", name:"Tidsjakt 1 ⏱️", desc:"Mitten-C upp till nästa C – med gott om tid", clef:"treble", lo:"C4", hi:"C5", time:10, minTime:5, count:12, practice:true},
+    {id:"t5", name:"Tidsjakt 2 ⏱️", desc:"Alla G-klavsnoter – hinner du innan tiden tar slut?", clef:"treble", lo:"A3", hi:"C6", time:7, minTime:3.5, count:15},
     {id:"t6", name:"Tjuv-Tore 🦝", desc:"Tvättbjörnen har stulit noterna – fånga tillbaka dem!", clef:"treble", lo:"A3", hi:"C6", boss:"tore"},
     {id:"t7", name:"Råttjakten 🐭", desc:"Fånga notmössen innan de gömmer sig!", clef:"treble", lo:"A3", hi:"C6", arcade:"mice"},
     {id:"t8", name:"Rymdlasern 👾", desc:"Skjut ner rymdisarna med notlasern!", clef:"treble", lo:"A3", hi:"C6", arcade:"space"},
@@ -354,9 +358,12 @@ const WORLDS = [
   {key:"bass", icon:"bass", name:"F-klaven (vänster hand)", color:"var(--bass)", levels:[
     {id:"b1", name:"Ner från mitten-C", desc:"F G A H C", clef:"bass", lo:"F3", hi:"C4"},
     {id:"b2", name:"Basens oktav", desc:"Från C ner till nästa C", clef:"bass", lo:"C3", hi:"C4"},
+    {id:"br1", name:"Repetition 🔁", desc:"Nivå 1 och 2 blandat – ingen brådska!", clef:"bass", lo:"C3", hi:"C4", count:12, rep:true, practice:true},
     {id:"b3", name:"Djupt nere", desc:"Alla linjer och mellanrum", clef:"bass", lo:"G2", hi:"B3"},
     {id:"b4", name:"Hjälplinjerna", desc:"Ännu längre upp och ner", clef:"bass", lo:"E2", hi:"E4"},
-    {id:"b5", name:"Tidsjakten ⏱️", desc:"Alla F-klavsnoter – hinner du innan tiden tar slut?", clef:"bass", lo:"E2", hi:"E4", time:6, count:15},
+    {id:"br2", name:"Stora repetitionen 🔁", desc:"Allt du lärt dig hittills – ingen brådska!", clef:"bass", lo:"E2", hi:"E4", count:15, rep:true, practice:true},
+    {id:"bt1", name:"Tidsjakt 1 ⏱️", desc:"Basens oktav – med gott om tid", clef:"bass", lo:"C3", hi:"C4", time:10, minTime:5, count:12, practice:true},
+    {id:"b5", name:"Tidsjakt 2 ⏱️", desc:"Alla F-klavsnoter – hinner du innan tiden tar slut?", clef:"bass", lo:"E2", hi:"E4", time:7, minTime:3.5, count:15},
     {id:"b6", name:"Trollet Brumm 🧌", desc:"Trollet har snott basnoterna – fånga tillbaka dem!", clef:"bass", lo:"E2", hi:"E4", boss:"brumm"},
     {id:"b7", name:"Labyrinten 🌿", desc:"Hjälp ugglan ut – Tjuv-Tore jagar!", clef:"bass", lo:"E2", hi:"E4", arcade:"maze", thief:"tore"},
     {id:"b8", name:"Motocrosshoppet 🏍️", desc:"Spela alla noter så klarar föraren tricket!", clef:"bass", lo:"E2", hi:"E4", arcade:"moto"},
@@ -381,6 +388,8 @@ const SAVE_KEY="notjakten-v1";
 let save = {name:"", stars:{}, points:0, settings:{labels:true, sound:true, awake:true}};
 try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s) save={...save,...s,settings:{...save.settings,...(s.settings||{})}}; }catch(e){}
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+// Version 2 lade in repetitionsnivåer i kedjan. Den som redan hade stjärnor ska inte få nivåer låsta igen.
+if(save.ver!==2){ save.legacy = Object.keys(save.stars||{}).length>0; save.ver=2; persist(); }
 const totalStars = ()=>Object.values(save.stars).reduce((a,b)=>a+b,0);
 const stickersFor = s=>Math.min(STICKERS.length, Math.floor(s/2));
 
@@ -460,19 +469,25 @@ function clefIcon(){
   </svg>`;
 }
 // Bossen kräver ⭐⭐⭐ på alla övriga nivåer i samma klav
-function bossPrereqs(lv){ return WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels.filter(l=>!l.boss && !l.arcade); }
+function bossPrereqs(lv){ return WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels.filter(l=>!l.boss && !l.arcade && !l.practice); }
 function bossMissing(lv){ return bossPrereqs(lv).filter(l=>(save.stars[l.id]||0)<3); }
 // Testläge: lägg till #lasupp sist i adressen så öppnas alla nivåer (sparas inte)
 let UNLOCK_ALL = /lasupp/.test(location.hash);
 window.addEventListener("hashchange",()=>{ UNLOCK_ALL=/lasupp/.test(location.hash); if($("map").classList.contains("active")) renderMap(); });
 function unlocked(lv){
   if(UNLOCK_ALL) return true;
+  if(save.stars[lv.id]!=null) return true;                       // en nivå man har klarat förblir öppen
   const idx = ALL_LEVELS.findIndex(l=>l.id===lv.id);
   if(lv.id==="t1"||lv.id==="b1") return true;
   if(lv.boss) return bossMissing(lv).length===0;
   if(lv.id==="m1") return (save.stars.t2||0)>=NEED && (save.stars.b2||0)>=NEED;
   const prev = ALL_LEVELS[idx-1];
   if(lv.arcade && prev.boss) return (save.stars[prev.id]||0)>=1;   // första äventyret: besegra bossen
+  if(save.legacy && !lv.practice){                                  // gamla kedjan (utan repetitionsnivåer) gäller fortfarande
+    const wl=WORLDS.find(w=>w.levels.some(l=>l.id===lv.id)).levels, i=wl.findIndex(l=>l.id===lv.id);
+    const old=wl.slice(0,i).reverse().find(l=>!l.practice);
+    if(old && !old.boss && (save.stars[old.id]||0)>=NEED) return true;
+  }
   return (save.stars[prev.id]||0)>=NEED;
 }
 function renderMap(){
@@ -485,8 +500,8 @@ function renderMap(){
     sec.innerHTML=`<h2>${w.icon?clefIcon(w.icon)+" ":""}${w.name}</h2><div class="levels"></div>`;
     w.levels.forEach((lv,i)=>{
       const st=save.stars[lv.id]||0, open=unlocked(lv);
-      const b=document.createElement("button"); b.className="lvl"+(lv.boss?" bossLvl":"")+(lv.arcade?" arcLvl":"")+(open?"":" locked");
-      b.innerHTML=`<span class="num" style="background:${lv.boss?"#dc2626":lv.arcade?"#d97706":w.color}">Nivå ${i+1}${lv.boss?" · BOSS":lv.arcade?" · ÄVENTYR":""}</span>
+      const b=document.createElement("button"); b.className="lvl"+(lv.boss?" bossLvl":"")+(lv.arcade?" arcLvl":"")+(lv.rep?" repLvl":"")+(open?"":" locked");
+      b.innerHTML=`<span class="num" style="background:${lv.boss?"#dc2626":lv.arcade?"#d97706":lv.rep?"#16a34a":w.color}">Nivå ${i+1}${lv.boss?" · BOSS":lv.arcade?" · ÄVENTYR":lv.rep?" · REPETITION":""}</span>
         <div class="name">${lv.name}</div><div class="desc">${lv.desc}</div>
         ${open?"":`<div class="desc" style="color:#c2410c;font-weight:700">${lv.boss
           ? `Lås upp: ⭐⭐⭐ på alla nivåer innan (${bossPrereqs(lv).length-bossMissing(lv).length} av ${bossPrereqs(lv).length} klara)`
@@ -576,7 +591,7 @@ function startLevel(lv){
   if(lv.boss) return startBoss(lv);
   if(lv.arcade) return startArcade(lv);
   const {pool,lo,hi}=poolFor(lv);
-  G={lv, pool, total:lv.count||NOTES_PER_ROUND, idx:0, mistakes:0, timeouts:0, noteMiss:0, streak:0, best:0, score:0, cur:null, prev:null, busy:false, t0:0, fast:0};
+  G={lv, pool, tl:lv.time||0, total:lv.count||NOTES_PER_ROUND, idx:0, mistakes:0, timeouts:0, noteMiss:0, streak:0, best:0, score:0, cur:null, prev:null, busy:false, t0:0, fast:0};
   buildPiano(lo,hi);
   $("timeWrap").style.display = lv.time ? "" : "none";
   $("score").textContent=0; $("streak").innerHTML="&nbsp;";
@@ -596,7 +611,7 @@ function nextNote(){
 }
 /* Tidsgräns per not (nivå 5) */
 function startTimer(){
-  const tok={}; G.tok=tok; const ms=G.lv.time*1000; G.deadline=performance.now()+ms;
+  const tok={}; G.tok=tok; const ms=G.tl*1000; G.deadline=performance.now()+ms;
   const bar=$("timeBar");
   const loop=()=>{
     if(!G || G.tok!==tok || G.busy) return;
@@ -608,8 +623,9 @@ function startTimer(){
   };
   loop();
 }
+function adaptTime(f){ if(G && G.lv.time) G.tl=Math.max(G.lv.minTime||3, Math.min(G.lv.time*1.4, G.tl*f)); }
 function timeUp(){
-  G.busy=true; G.mistakes++; G.timeouts++; G.streak=0;
+  G.busy=true; G.mistakes++; G.timeouts++; G.streak=0; adaptTime(1.2);
   $("streak").innerHTML="&nbsp;";
   sndBad();
   $("head").setAttribute("fill","#ef4444");
@@ -637,6 +653,7 @@ function answer(m){
     G.streak = G.noteMiss===0 ? G.streak+1 : 0; G.best=Math.max(G.best,G.streak);
     const pts = G.noteMiss===0 ? 10 + (fast?5:0) + Math.min(G.streak,10) : 3;
     if(fast) G.fast++;
+    if(G.lv.time && G.noteMiss===0) adaptTime(secs<G.tl*.6 ? .9 : .97);
     G.score+=pts; $("score").textContent=G.score;
     if(el) el.classList.add("good");
     setTimeout(sndGood,120);
@@ -651,7 +668,7 @@ function answer(m){
     $("progBar").style.width = (G.idx/G.total*100)+"%";
     setTimeout(()=>{ if(G) (G.idx>=G.total ? finish() : nextNote()); }, 900);
   } else {
-    G.mistakes++; G.noteMiss++; G.streak=0;
+    G.mistakes++; G.noteMiss++; G.streak=0; if(G.noteMiss===1) adaptTime(1.12);
     $("streak").innerHTML="&nbsp;";
     if(el){ el.classList.add("bad"); setTimeout(()=>el.classList.remove("bad"),400); }
     sndBad();
@@ -2356,7 +2373,7 @@ $("resetBtn").onclick=()=>{
     return;
   }
   clearTimeout(resetArmed); resetArmed=null; b.textContent="Nollställ allt"; b.style.background="";
-  save.stars={}; save.points=0; save.name=""; persist();
+  save.stars={}; save.points=0; save.name=""; save.legacy=false; persist();
   $("settingsModal").classList.remove("show");
   $("nameInput").value="";
   $("startBubble").textContent="Hej! Jag är Noto-ugglan. Vad heter du?";
